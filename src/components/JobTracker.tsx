@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Eye, ArrowRight, CheckCircle2, Clock, Calendar, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Camera, FileText, Package } from 'lucide-react';
-import { PowderCoatJob, JobStatus } from '../types';
+import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert } from 'lucide-react';
+import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 
 interface JobTrackerProps {
   jobs: PowderCoatJob[];
@@ -8,9 +8,10 @@ interface JobTrackerProps {
   onRefresh: () => void;
   onSelectJob: (job: PowderCoatJob) => void;
   onUpdateStatus: (jobId: string, status: JobStatus) => void;
+  onUpdatePriority?: (jobId: string, priority: JobPriority) => void;
   onOpenDispatch: (job: PowderCoatJob) => void;
   onDeleteJob: (jobId: string) => void;
-  initialFilter?: JobStatus | 'ALL';
+  initialFilter?: JobStatus | 'ALL' | 'URGENT_ONLY';
 }
 
 export const JobTracker: React.FC<JobTrackerProps> = ({
@@ -19,19 +20,22 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   onRefresh,
   onSelectJob,
   onUpdateStatus,
+  onUpdatePriority,
   onOpenDispatch,
   onDeleteJob,
   initialFilter = 'ALL',
 }) => {
-  const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL'>(initialFilter);
+  const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL' | 'URGENT_ONLY'>(initialFilter);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
-  // Filter jobs
+  // Filter & sort jobs (งานด่วนที่สุด URGENT จะลอยขึ้นบนสุดเสมอ!)
   const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
-      // Status filter
-      if (statusFilter !== 'ALL' && job.status !== statusFilter) {
+    const list = jobs.filter((job) => {
+      // Urgent only filter
+      if (statusFilter === 'URGENT_ONLY') {
+        if (job.priority !== 'URGENT' && job.priority !== 'HIGH') return false;
+      } else if (statusFilter !== 'ALL' && job.status !== statusFilter) {
         return false;
       }
 
@@ -49,6 +53,20 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
       }
 
       return true;
+    });
+
+    // เรียงลำดับ: URGENT (3) -> HIGH (2) -> NORMAL (1) -> ตามเวลารับเข้าล่าสุด
+    return list.sort((a, b) => {
+      const getPriorityScore = (p?: JobPriority) => {
+        if (p === 'URGENT') return 3;
+        if (p === 'HIGH') return 2;
+        return 1;
+      };
+
+      const scoreDiff = getPriorityScore(b.priority) - getPriorityScore(a.priority);
+      if (scoreDiff !== 0) return scoreDiff;
+
+      return new Date(b.created_at || b.received_at).getTime() - new Date(a.created_at || a.received_at).getTime();
     });
   }, [jobs, statusFilter, searchQuery]);
 
@@ -80,6 +98,39 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
         };
     }
   };
+
+  const getPriorityInfo = (p?: JobPriority) => {
+    switch (p) {
+      case 'URGENT':
+        return {
+          isUrgent: true,
+          labelTh: 'ด่วนที่สุด!',
+          labelMy: 'အရေးပေါ်',
+          badgeClass: 'bg-rose-950 text-rose-200 border-rose-500 animate-pulse',
+          cardClass: 'border-rose-500/90 shadow-2xl shadow-rose-950/60 ring-2 ring-rose-500/50',
+          banner: 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700',
+        };
+      case 'HIGH':
+        return {
+          isHigh: true,
+          labelTh: 'งานด่วน',
+          labelMy: 'အရေးကြီး',
+          badgeClass: 'bg-amber-950 text-amber-200 border-amber-500/90',
+          cardClass: 'border-amber-500/70 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/30',
+          banner: 'bg-gradient-to-r from-amber-600 to-orange-600',
+        };
+      default:
+        return {
+          labelTh: 'ปกติ',
+          labelMy: 'ပုံမှန်',
+          badgeClass: 'bg-slate-800 text-slate-300 border-slate-700',
+          cardClass: 'border-slate-800 hover:border-slate-700',
+          banner: null,
+        };
+    }
+  };
+
+  const urgentCount = jobs.filter((j) => j.priority === 'URGENT' || j.priority === 'HIGH').length;
 
   return (
     <div className="space-y-6 pb-12">
@@ -136,6 +187,19 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
 
         {/* Status Filter Pills */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
+          {/* ปุ่มงานด่วนพิเศษ */}
+          <button
+            onClick={() => setStatusFilter(statusFilter === 'URGENT_ONLY' ? 'ALL' : 'URGENT_ONLY')}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all flex items-center space-x-1.5 ${
+              statusFilter === 'URGENT_ONLY'
+                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/40 ring-2 ring-rose-400'
+                : 'bg-rose-950/60 text-rose-300 hover:bg-rose-900 border border-rose-800/80'
+            }`}
+          >
+            <Flame className="w-4 h-4 text-rose-400 animate-pulse" />
+            <span>🔥 เฉพาะงานด่วน • အရေးပေါ် ({urgentCount})</span>
+          </button>
+
           <button
             onClick={() => setStatusFilter('ALL')}
             className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-colors ${
@@ -209,24 +273,79 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredJobs.map((job) => {
             const statusInfo = getStatusBadge(job.status);
+            const priorityInfo = getPriorityInfo(job.priority);
+
             return (
               <div
                 key={job.id}
-                className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden group"
+                className={`bg-slate-900 border rounded-2xl transition-all flex flex-col justify-between overflow-hidden group ${priorityInfo.cardClass}`}
               >
+                {/* 🔴 แถบสีด้านบนสำหรับงานด่วน/ด่วนที่สุด พร้อมภาษาพม่าสะดุดตา */}
+                {priorityInfo.banner && (
+                  <div className={`px-4 py-1.5 text-xs font-black flex items-center justify-between tracking-wide shadow-md ${priorityInfo.banner}`}>
+                    <div className="flex items-center space-x-1.5">
+                      {job.priority === 'URGENT' ? (
+                        <Flame className="w-4 h-4 animate-bounce" />
+                      ) : (
+                        <Zap className="w-4 h-4" />
+                      )}
+                      <span>{priorityInfo.labelTh}</span>
+                      <span>•</span>
+                      <span className="text-sm">{priorityInfo.labelMy}</span>
+                    </div>
+                    <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-mono font-bold">
+                      {job.priority}
+                    </span>
+                  </div>
+                )}
+
                 {/* Card Top */}
                 <div className="p-5 space-y-4">
-                  {/* Header Row: Tracking + Status */}
-                  <div className="flex items-center justify-between">
+                  {/* Header Row: Tracking + Status + Priority Badge */}
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-1 rounded-md">
                       {job.tracking_code}
                     </span>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.bg}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${statusInfo.dot}`}></span>
-                      {statusInfo.label}
-                    </span>
+                    
+                    <div className="flex items-center space-x-1.5">
+                      {/* Priority pill */}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${priorityInfo.badgeClass}`}>
+                        <span className="mr-1">{priorityInfo.labelTh}</span>
+                        <span className="text-[10px] opacity-90">({priorityInfo.labelMy})</span>
+                      </span>
+
+                      {/* Status pill */}
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.bg}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${statusInfo.dot}`}></span>
+                        {statusInfo.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 📍 HIGHLIGHTED BOX / CONTAINER NO FOR FACTORY WORKERS (ใหญ่สะดุดตา ช่างพม่าเห็นปุ๊บรู้เลยว่าต้องไปหยิบตู้ไหน) */}
+                  <div className={`rounded-xl p-3.5 border-2 flex items-center justify-between transition-colors ${
+                    job.priority === 'URGENT' 
+                      ? 'bg-rose-950/40 border-rose-500/80 shadow-lg shadow-rose-950/30' 
+                      : job.priority === 'HIGH'
+                      ? 'bg-amber-950/30 border-amber-500/80'
+                      : 'bg-slate-800/90 border-orange-500/40'
+                  }`}>
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-orange-400 flex items-center space-x-1">
+                        <span>📍 หมายเลขตู้สินค้า (BOX)</span>
+                      </span>
+                      <span className="text-xl sm:text-2xl font-black text-white tracking-wide font-mono block mt-0.5">
+                        {job.container_no}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[11px] text-slate-400 block">จำนวน</span>
+                      <span className="text-lg sm:text-xl font-bold text-emerald-400">
+                        {job.quantity} ชิ้น
+                      </span>
+                    </div>
                   </div>
 
                   {/* Model & Part Title */}
@@ -234,22 +353,16 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     <h3 className="text-lg font-bold text-white font-mono group-hover:text-orange-400 transition-colors">
                       {job.model_part_no}
                     </h3>
-                    <p className="text-sm font-medium text-orange-300 mt-0.5 flex items-center space-x-1.5">
-                      <span>{job.part_name}</span>
-                      <span className="text-slate-500">•</span>
-                      <span className="text-emerald-400 font-semibold">{job.quantity} ชิ้น</span>
+                    <p className="text-sm font-semibold text-orange-300 mt-0.5">
+                      {job.part_name}
                     </p>
                   </div>
 
                   {/* Metadata Box */}
                   <div className="bg-slate-800/60 rounded-xl p-3 text-xs space-y-2 border border-slate-700/60">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">ตู้สินค้า:</span>
-                      <span className="font-semibold text-white">{job.container_no}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-slate-400">แผนกผู้นำส่ง:</span>
-                      <span className="text-slate-200">{job.sender_department}</span>
+                      <span className="text-slate-200 font-medium">{job.sender_department}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">ผู้ส่งมอบ:</span>
@@ -284,7 +397,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                         alt="ใบส่งมอบ"
                         className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 truncate">
+                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 truncate font-medium">
                         ใบส่งมอบงาน
                       </div>
                     </div>
@@ -297,7 +410,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                         alt="ตัวชิ้นงาน"
                         className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 truncate">
+                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 truncate font-medium">
                         ตัวชิ้นงานจริง
                       </div>
                     </div>
@@ -305,63 +418,110 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                 </div>
 
                 {/* Card Actions Bottom */}
-                <div className="p-4 bg-slate-800/40 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => onSelectJob(job)}
-                    className="p-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs transition-colors flex items-center space-x-1"
-                    title="ดูหลักฐานและข้อมูลทั้งหมด"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span className="hidden sm:inline">ดูรายละเอียด</span>
-                  </button>
-
-                  <div className="flex items-center space-x-1.5">
-                    {job.status === 'RECEIVED' && (
-                      <button
-                        onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
-                        className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors"
-                      >
-                        เริ่มพ่นสี
-                      </button>
-                    )}
-
-                    {job.status === 'IN_PROGRESS' && (
-                      <button
-                        onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>พ่นเสร็จ</span>
-                      </button>
-                    )}
-
-                    {job.status === 'COMPLETED' && (
-                      <button
-                        onClick={() => onOpenDispatch(job)}
-                        className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
-                      >
-                        <span>ส่งแพ็คกิ้ง</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {job.status === 'DISPATCHED_TO_PACKING' && (
-                      <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
-                        ถึงแพ็คกิ้งแล้ว
+                <div className="p-4 bg-slate-800/40 border-t border-slate-800/80 space-y-2.5">
+                  {/* แถบปรับระดับความด่วน 1-คลิกสำหรับหัวหน้างาน/รองหัวหน้า */}
+                  {onUpdatePriority && (
+                    <div className="flex items-center justify-between text-xs bg-black/30 p-1.5 rounded-xl border border-slate-700/60">
+                      <span className="text-[11px] text-slate-400 font-medium pl-1">
+                        ความด่วน (หัวหน้า):
                       </span>
-                    )}
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => onUpdatePriority(job.id, 'NORMAL')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                            !job.priority || job.priority === 'NORMAL'
+                              ? 'bg-emerald-600 text-white'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="ปกติ (ပုံမှန်)"
+                        >
+                          ปกติ
+                        </button>
+                        <button
+                          onClick={() => onUpdatePriority(job.id, 'HIGH')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                            job.priority === 'HIGH'
+                              ? 'bg-amber-600 text-white'
+                              : 'text-slate-400 hover:text-amber-300'
+                          }`}
+                          title="งานด่วน (အရေးကြီး)"
+                        >
+                          ⚡ด่วน
+                        </button>
+                        <button
+                          onClick={() => onUpdatePriority(job.id, 'URGENT')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                            job.priority === 'URGENT'
+                              ? 'bg-rose-600 text-white animate-pulse'
+                              : 'text-slate-400 hover:text-rose-400'
+                          }`}
+                          title="ด่วนที่สุด (အရေးပေါ်)"
+                        >
+                          🔥ด่วนมาก!
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
+                  {/* Main Action buttons */}
+                  <div className="flex items-center justify-between gap-2">
                     <button
-                      onClick={() => {
-                        if (confirm(`คุณต้องการลบรายการงาน ${job.tracking_code} ใช่หรือไม่?`)) {
-                          onDeleteJob(job.id);
-                        }
-                      }}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
-                      title="ลบรายการ"
+                      onClick={() => onSelectJob(job)}
+                      className="p-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs transition-colors flex items-center space-x-1"
+                      title="ดูหลักฐานและข้อมูลทั้งหมด"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Eye className="w-4 h-4" />
+                      <span className="hidden sm:inline">ดูรายละเอียด</span>
                     </button>
+
+                    <div className="flex items-center space-x-1.5">
+                      {job.status === 'RECEIVED' && (
+                        <button
+                          onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
+                          className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors"
+                        >
+                          เริ่มพ่นสี
+                        </button>
+                      )}
+
+                      {job.status === 'IN_PROGRESS' && (
+                        <button
+                          onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>พ่นเสร็จ</span>
+                        </button>
+                      )}
+
+                      {job.status === 'COMPLETED' && (
+                        <button
+                          onClick={() => onOpenDispatch(job)}
+                          className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
+                        >
+                          <span>ส่งแพ็คกิ้ง</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {job.status === 'DISPATCHED_TO_PACKING' && (
+                        <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
+                          ถึงแพ็คกิ้งแล้ว
+                        </span>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          if (confirm(`คุณต้องการลบรายการงาน ${job.tracking_code} ใช่หรือไม่?`)) {
+                            onDeleteJob(job.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                        title="ลบรายการ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -375,10 +535,11 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-slate-800/80 border-b border-slate-700/80 text-slate-300 uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="px-4 py-3.5">รหัสงาน / วันเวลารับเข้า</th>
-                  <th className="px-4 py-3.5">Model / Part</th>
+                  <th className="px-4 py-3.5">ความเร่งด่วน</th>
+                  <th className="px-4 py-3.5">รหัสงาน / เวลารับ</th>
                   <th className="px-4 py-3.5">ตู้สินค้า / จำนวน</th>
-                  <th className="px-4 py-3.5">แผนกผู้นำส่ง / ผู้ส่ง</th>
+                  <th className="px-4 py-3.5">Model / Part</th>
+                  <th className="px-4 py-3.5">แผนก / ผู้ส่ง</th>
                   <th className="px-4 py-3.5">รูปหลักฐาน</th>
                   <th className="px-4 py-3.5">สถานะ</th>
                   <th className="px-4 py-3.5 text-right">การจัดการ</th>
@@ -387,8 +548,14 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
               <tbody className="divide-y divide-slate-800">
                 {filteredJobs.map((job) => {
                   const statusInfo = getStatusBadge(job.status);
+                  const priorityInfo = getPriorityInfo(job.priority);
                   return (
-                    <tr key={job.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr key={job.id} className={`hover:bg-slate-800/40 transition-colors ${job.priority === 'URGENT' ? 'bg-rose-950/20' : ''}`}>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${priorityInfo.badgeClass}`}>
+                          {priorityInfo.labelTh} ({priorityInfo.labelMy})
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-mono font-bold text-orange-400">
                           {job.tracking_code}
@@ -402,14 +569,14 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-bold text-white font-mono">{job.model_part_no}</div>
-                        <div className="text-orange-300 text-xs">{job.part_name}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-white">{job.container_no}</div>
-                        <div className="text-emerald-400 text-xs font-medium">
+                        <div className="font-mono font-bold text-base text-white">{job.container_no}</div>
+                        <div className="text-emerald-400 text-xs font-semibold">
                           {job.quantity} ชิ้น
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-white font-mono">{job.model_part_no}</div>
+                        <div className="text-orange-300 text-xs">{job.part_name}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-slate-200">{job.sender_department}</div>

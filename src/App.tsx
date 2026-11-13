@@ -4,8 +4,8 @@ import { ReceiveJobForm } from './components/ReceiveJobForm';
 import { JobTracker } from './components/JobTracker';
 import { JobDetailModal } from './components/JobDetailModal';
 import { DispatchModal } from './components/DispatchModal';
-import { fetchJobs, updateJobStatus, deleteJob, saveLocalJobs } from './lib/supabase';
-import { PowderCoatJob, JobStatus } from './types';
+import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
+import { PowderCoatJob, JobStatus, JobPriority } from './types';
 
 // Sample mock data for first-time preview if completely empty
 const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
@@ -143,6 +143,21 @@ export function App() {
     }
   };
 
+  // Handle priority update (Supervisor 1-click toggle)
+  const handleUpdatePriority = async (jobId: string, priority: JobPriority) => {
+    try {
+      await updateJobPriority(jobId, priority);
+      setJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? { ...j, priority } : j))
+      );
+      if (selectedJob && selectedJob.id === jobId) {
+        setSelectedJob((prev) => (prev ? { ...prev, priority } : null));
+      }
+    } catch (e) {
+      console.error('Failed to update priority', e);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Top Navbar */}
@@ -173,6 +188,7 @@ export function App() {
             onRefresh={loadJobs}
             onSelectJob={setSelectedJob}
             onUpdateStatus={handleUpdateStatus}
+            onUpdatePriority={handleUpdatePriority}
             onOpenDispatch={setDispatchingJob}
             onDeleteJob={handleDeleteJob}
             initialFilter="ALL"
@@ -202,6 +218,7 @@ export function App() {
               onRefresh={loadJobs}
               onSelectJob={setSelectedJob}
               onUpdateStatus={handleUpdateStatus}
+              onUpdatePriority={handleUpdatePriority}
               onOpenDispatch={setDispatchingJob}
               onDeleteJob={handleDeleteJob}
               initialFilter="ALL"
@@ -216,6 +233,7 @@ export function App() {
           job={selectedJob}
           onClose={() => setSelectedJob(null)}
           onUpdateStatus={handleUpdateStatus}
+          onUpdatePriority={handleUpdatePriority}
           onOpenDispatch={(job) => {
             setSelectedJob(null);
             setDispatchingJob(job);

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download } from 'lucide-react';
-import { PowderCoatJob, JobStatus } from '../types';
+import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert } from 'lucide-react';
+import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 
 interface JobDetailModalProps {
   job: PowderCoatJob;
   onClose: () => void;
   onUpdateStatus: (jobId: string, status: JobStatus) => void;
+  onUpdatePriority?: (jobId: string, priority: JobPriority) => void;
   onOpenDispatch: (job: PowderCoatJob) => void;
 }
 
@@ -13,9 +14,31 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   job,
   onClose,
   onUpdateStatus,
+  onUpdatePriority,
   onOpenDispatch,
 }) => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+
+  const getPriorityBadge = (priority?: JobPriority) => {
+    switch (priority) {
+      case 'URGENT':
+        return {
+          label: '🔥 ด่วนที่สุด! • အရေးပေါ် (Urgent)',
+          bg: 'bg-red-500/20 text-red-300 border-red-500 animate-pulse font-black',
+        };
+      case 'HIGH':
+        return {
+          label: '⚡ งานด่วน • အရေးကြီး (High)',
+          bg: 'bg-amber-500/20 text-amber-300 border-amber-500 font-bold',
+        };
+      case 'NORMAL':
+      default:
+        return {
+          label: 'ทั่วไป • ပုံမှန် (Normal)',
+          bg: 'bg-slate-700/50 text-slate-300 border-slate-600',
+        };
+    }
+  };
 
   const getStatusBadge = (status: JobStatus) => {
     switch (status) {
@@ -47,15 +70,35 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   };
 
   const statusInfo = getStatusBadge(job.status);
+  const priorityInfo = getPriorityBadge(job.priority);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-8">
+      <div className={`bg-slate-900 border rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-8 ${
+        job.priority === 'URGENT' ? 'border-red-500/80 shadow-red-950/60' : 'border-slate-800'
+      }`}>
+        {/* Urgent Alert Banner */}
+        {job.priority === 'URGENT' && (
+          <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-600 px-6 py-2.5 text-white flex items-center justify-between font-bold text-xs sm:text-sm shadow animate-pulse">
+            <div className="flex items-center space-x-2">
+              <Flame className="w-5 h-5 text-yellow-300 fill-yellow-300 animate-bounce" />
+              <span>งานด่วนที่สุด ต้องรีบพ่นก่อน!</span>
+              <span className="font-mono bg-white/20 px-2 py-0.5 rounded text-xs">အရေးပေါ် လုပ်ဆောင်ရန်</span>
+            </div>
+            <span className="text-xs bg-black/30 px-2 py-0.5 rounded font-mono">PRIORITY: URGENT</span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-slate-800/80 px-6 py-4 border-b border-slate-700/80 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span className="font-mono text-xs px-2.5 py-1 rounded-md bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold">
               {job.tracking_code}
+            </span>
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${priorityInfo.bg}`}
+            >
+              {priorityInfo.label}
             </span>
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${statusInfo.bg}`}
@@ -72,9 +115,54 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </button>
         </div>
 
+        {/* Supervisor Priority Quick Change Bar */}
+        {onUpdatePriority && (
+          <div className="bg-slate-950/60 px-6 py-3 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-slate-400 flex items-center space-x-1.5">
+              <ShieldAlert className="w-4 h-4 text-orange-400" />
+              <span>หัวหน้างานปรับสถานะความด่วน:</span>
+            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => onUpdatePriority(job.id, 'URGENT')}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                  job.priority === 'URGENT'
+                    ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-900/50 ring-2 ring-red-400'
+                    : 'bg-slate-800 text-red-300 border-red-900/50 hover:bg-red-950/40'
+                }`}
+              >
+                🔥 ด่วนมาก! (အရေးပေါ်)
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdatePriority(job.id, 'HIGH')}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                  job.priority === 'HIGH'
+                    ? 'bg-amber-600 text-white border-amber-500 shadow-lg shadow-amber-900/50 ring-2 ring-amber-400'
+                    : 'bg-slate-800 text-amber-300 border-amber-900/50 hover:bg-amber-950/40'
+                }`}
+              >
+                ⚡ งานด่วน (အရေးကြီး)
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdatePriority(job.id, 'NORMAL')}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                  !job.priority || job.priority === 'NORMAL'
+                    ? 'bg-slate-700 text-white border-slate-500 ring-1 ring-slate-400'
+                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700/50'
+                }`}
+              >
+                ปกติ (ပုံမှန်)
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-          {/* Key Info Grid */}
+          {/* Key Info Grid with Large Container No */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-800/40 p-4 rounded-xl border border-slate-800">
             <div>
               <span className="text-xs text-slate-400 block mb-1">Model / Part No.</span>
@@ -84,9 +172,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <span className="text-xs text-slate-400 block mb-1">ชิ้นส่วน (Part)</span>
               <span className="text-base font-semibold text-orange-400">{job.part_name}</span>
             </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-1">หมายเลขตู้สินค้า</span>
-              <span className="text-base font-semibold text-white">{job.container_no}</span>
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+              <span className="text-xs text-amber-400 font-semibold block mb-0.5">📍 ตู้สินค้า (BOX)</span>
+              <span className="text-base sm:text-lg font-black text-amber-300 font-mono tracking-wider">{job.container_no}</span>
             </div>
             <div>
               <span className="text-xs text-slate-400 block mb-1">จำนวน</span>

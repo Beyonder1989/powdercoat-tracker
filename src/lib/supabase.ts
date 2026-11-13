@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { PowderCoatJob, JobStatus } from '../types';
+import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 
 // พยายามดึงจาก ENV หรือ LocalStorage เพื่อให้ผู้ใช้สามารถใส่ Key ผ่านหน้าเว็บได้เลย
 export const getSupabaseConfig = () => {
@@ -186,6 +186,7 @@ export const createJob = async (
   const created_at = new Date().toISOString();
 
   const newJob: PowderCoatJob = {
+    priority: 'NORMAL',
     ...jobData,
     id,
     tracking_code,
@@ -252,6 +253,38 @@ export const updateJobStatus = async (
   const index = localJobs.findIndex((j) => j.id === id);
   if (index !== -1) {
     localJobs[index] = { ...localJobs[index], ...updatePayload };
+    saveLocalJobs(localJobs);
+    return localJobs[index];
+  }
+
+  return null;
+};
+
+// อัปเดตระดับความสำคัญ/ความเร่งด่วนของงาน (โดยหัวหน้างาน/รองหัวหน้า)
+export const updateJobPriority = async (
+  id: string,
+  priority: JobPriority
+): Promise<PowderCoatJob | null> => {
+  const supabase = getSupabase();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('powdercoat_jobs')
+      .update({ priority })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      return data as PowderCoatJob;
+    }
+    console.warn('Supabase update priority failed:', error?.message);
+  }
+
+  // Update local
+  const localJobs = getLocalJobs();
+  const index = localJobs.findIndex((j) => j.id === id);
+  if (index !== -1) {
+    localJobs[index] = { ...localJobs[index], priority };
     saveLocalJobs(localJobs);
     return localJobs[index];
   }

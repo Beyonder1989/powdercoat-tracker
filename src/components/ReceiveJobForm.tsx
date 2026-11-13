@@ -1,9 +1,9 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Camera, Upload, CheckCircle2, AlertCircle, X, Search, ChevronDown, Calendar, Clock, User, Package, Building2, Hash, FileText } from 'lucide-react';
+import { Camera, Upload, CheckCircle2, AlertCircle, X, Search, ChevronDown, Calendar, Clock, User, Package, Building2, Hash, FileText, Flame, Zap, ShieldAlert } from 'lucide-react';
 import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO } from '../data/masterData';
 import { getEmployeesByDepartment, POWDER_COAT_RECEIVERS } from '../data/employeeData';
 import { uploadEvidenceImage, createJob } from '../lib/supabase';
-import { PowderCoatJob } from '../types';
+import { PowderCoatJob, JobPriority } from '../types';
 
 interface ReceiveJobFormProps {
   onSuccess: (newJob: PowderCoatJob) => void;
@@ -32,6 +32,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
   const [customReceiverName, setCustomReceiverName] = useState<string>('');
 
   const [notes, setNotes] = useState<string>('');
+  const [priority, setPriority] = useState<JobPriority>('NORMAL');
 
   // Photos
   const [slipFile, setSlipFile] = useState<File | null>(null);
@@ -147,6 +148,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
         delivery_slip_image_url: slipUrl,
         part_image_url: partUrl,
         status: 'RECEIVED',
+        priority: priority,
         received_at: new Date().toISOString(),
         receiver_name: effectiveReceiver,
         notes: notes.trim(),
@@ -430,6 +432,70 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                   className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-semibold"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Section: กำหนดความเร่งด่วนของงาน (โดยหัวหน้างาน/รองหัวหน้า) */}
+          <div className="bg-slate-800/40 border border-slate-700/80 rounded-2xl p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+              <label className="text-sm font-semibold text-white flex items-center space-x-2">
+                <Flame className="w-4 h-4 text-rose-400" />
+                <span>ระดับความเร่งด่วนของงาน (Priority / ဦးစားပေးအဆင့်)</span>
+              </label>
+              <span className="text-xs text-amber-400/90 font-medium">กำหนดโดยหัวหน้างาน / รองหัวหน้า</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* NORMAL */}
+              <button
+                type="button"
+                onClick={() => setPriority('NORMAL')}
+                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                  priority === 'NORMAL'
+                    ? 'bg-emerald-950/70 border-emerald-500 text-emerald-200 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-950/40'
+                    : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <div className="flex items-center space-x-1.5 font-bold text-sm text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                  <span>งานปกติ (NORMAL)</span>
+                </div>
+                <span className="text-xs text-slate-300 font-medium mt-1">ပုံမှန် (ตามคิวทั่วไป)</span>
+              </button>
+
+              {/* HIGH */}
+              <button
+                type="button"
+                onClick={() => setPriority('HIGH')}
+                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                  priority === 'HIGH'
+                    ? 'bg-amber-950/70 border-amber-500 text-amber-200 ring-2 ring-amber-500/30 shadow-lg shadow-amber-950/40'
+                    : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <div className="flex items-center space-x-1.5 font-bold text-sm text-amber-300">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span>งานด่วน (HIGH)</span>
+                </div>
+                <span className="text-xs text-amber-300/90 font-medium mt-1">အရေးကြီး (เร่งรอบพิเศษ)</span>
+              </button>
+
+              {/* URGENT */}
+              <button
+                type="button"
+                onClick={() => setPriority('URGENT')}
+                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                  priority === 'URGENT'
+                    ? 'bg-rose-950/90 border-rose-500 text-rose-100 ring-2 ring-rose-500/50 shadow-xl shadow-rose-950/70'
+                    : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <div className="flex items-center space-x-1.5 font-bold text-sm text-rose-400 animate-pulse">
+                  <Flame className="w-4 h-4 text-rose-500" />
+                  <span>ด่วนที่สุด! (URGENT)</span>
+                </div>
+                <span className="text-xs text-rose-200 font-bold mt-1">အရေးပေါ် (หยิบไปพ่นทันที!)</span>
+              </button>
             </div>
           </div>
 
