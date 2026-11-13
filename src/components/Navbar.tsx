@@ -1,18 +1,16 @@
 import React from 'react';
-import { Layers, PlusCircle, CheckCircle2, PackageCheck, Database, Paintbrush } from 'lucide-react';
+import { Layers, PlusCircle, PackageCheck, Paintbrush } from 'lucide-react';
 import { JobStatus } from '../types';
 
 interface NavbarProps {
-  activeTab: 'receive' | 'tracker' | 'packing' | 'settings';
-  setActiveTab: (tab: 'receive' | 'tracker' | 'packing' | 'settings') => void;
-  isSupabaseConnected: boolean;
+  activeTab: 'receive' | 'tracker' | 'packing';
+  setActiveTab: (tab: 'receive' | 'tracker' | 'packing') => void;
   counts: Record<JobStatus, number>;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
-  isSupabaseConnected,
   counts,
 }) => {
   return (
@@ -29,23 +27,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-lg sm:text-xl font-bold tracking-tight text-white">
                   POWDER COAT <span className="text-orange-400">TRACKER</span>
                 </span>
-                {isSupabaseConnected ? (
-                  <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-                    Supabase Cloud
-                  </span>
-                ) : (
-                  <span 
-                    onClick={(e) => { e.stopPropagation(); setActiveTab('settings'); }} 
-                    className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-950 text-amber-300 border border-amber-800 hover:bg-amber-900 cursor-pointer"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5"></span>
-                    โหมดจำลอง (คลิกเพื่อต่อ DB)
-                  </span>
-                )}
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
-                ระบบรับเข้าและส่งมอบงานพ่นสีอะไหล่กันชน
+                ระบบรับเข้าและส่งมอบงานพ่นสีอะไหล่กันชน (HAMER 4X4)
               </p>
             </div>
           </div>
@@ -74,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Actions & Settings */}
+          {/* Action Button */}
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setActiveTab('receive')}
@@ -86,18 +70,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <PlusCircle className="w-4 h-4" />
               <span>รับเข้างานใหม่</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('settings')}
-              title="ตั้งค่า Supabase / ฐานข้อมูล"
-              className={`p-2 sm:p-2.5 rounded-xl border transition-all ${
-                activeTab === 'settings'
-                  ? 'bg-slate-700 border-slate-600 text-white'
-                  : 'bg-slate-800/70 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Database className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -138,18 +110,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <PackageCheck className="w-4 h-4" />
             <span>ส่งมอบแผนกแพ็คกิ้ง</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors ${
-              activeTab === 'settings'
-                ? 'bg-slate-800 text-slate-200 border border-slate-700'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Database className="w-4 h-4" />
-            <span>ตั้งค่า Supabase</span>
           </button>
         </div>
       </div>

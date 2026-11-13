@@ -7,6 +7,6 @@ export default defineConfig({
   server: {
     host: true, // รองรับการเปิดผ่านมือถือ/แท็บเล็ตในวง Wi-Fi เดียวกัน
     port: 5173,
-    open: false, // จัดการเปิดผ่าน Batch Script ให้เอง
+    open: true, // เปิดเบราว์เซอร์อัตโนมัติเมื่อระบบโหลดและพร้อม 100% แล้ว
   },
 })

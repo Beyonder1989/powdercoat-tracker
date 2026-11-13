@@ -1,35 +1,29 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 cd /d "%~dp0"
 
-rem เพิ่ม Node.js เข้าสู่ PATH เพื่อป้องกันปัญหาหา node ไม่เจอ
 set "PATH=D:\nodejs;C:\Program Files\nodejs;%PATH%"
 
-title POWDER COAT TRACKER - HAMER 4X4
+title POWDER COAT TRACKER - HAMER 4X4 SYSTEM
 color 0B
 
 echo ===============================================================================
 echo   POWDER COAT TRACKER - HAMER 4X4 SYSTEM
-echo   ระบบรับเข้าและติดตามงานพ่นสีอะไหล่กันชน
+echo   Bumper Parts Inbound ^& Tracking System
 echo ===============================================================================
 echo.
-echo [*] กำลังเริ่มต้นระบบ...
-echo [*] URL สำหรับใช้งานบนคอมพิวเตอร์: http://localhost:5173
+echo   [*] Status : Starting local server...
+echo   [*] Local  : http://localhost:5173
 echo.
-echo [*] ระบบจะเปิดเบราว์เซอร์ให้คุณโดยอัตโนมัติ
-echo [*] หากต้องการปิดโปรแกรม ให้ปิดหน้าต่างสีดำนี้ได้เลยครับ
+echo   [*] Note   : Browser will open automatically as soon as server is ready.
+echo   [*] Exit   : Close this window to stop the server.
 echo ===============================================================================
 echo.
 
-rem สั่งเปิดบราวเซอร์หลังจากเซิร์ฟเวอร์พร้อม
-start "" "http://localhost:5173"
-
-rem เริ่มต้น Vite Server
 call npm run dev -- --host
 
 if %errorlevel% neq 0 (
     echo.
-    echo [ERROR] เซิร์ฟเวอร์หยุดทำงานด้วยรหัสผิดพลาด
-    echo.
+    echo   [ERROR] Server exited unexpectedly.
     pause
 )

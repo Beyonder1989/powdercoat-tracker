@@ -4,8 +4,7 @@ import { ReceiveJobForm } from './components/ReceiveJobForm';
 import { JobTracker } from './components/JobTracker';
 import { JobDetailModal } from './components/JobDetailModal';
 import { DispatchModal } from './components/DispatchModal';
-import { SupabaseSettingsModal } from './components/SupabaseSettingsModal';
-import { fetchJobs, updateJobStatus, deleteJob, getSupabaseConfig, saveLocalJobs, getLocalJobs } from './lib/supabase';
+import { fetchJobs, updateJobStatus, deleteJob, saveLocalJobs } from './lib/supabase';
 import { PowderCoatJob, JobStatus } from './types';
 
 // Sample mock data for first-time preview if completely empty
@@ -67,21 +66,18 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
 ];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing' | 'settings'>('tracker');
+  const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing'>('tracker');
   const [jobs, setJobs] = useState<PowderCoatJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedJob, setSelectedJob] = useState<PowderCoatJob | null>(null);
   const [dispatchingJob, setDispatchingJob] = useState<PowderCoatJob | null>(null);
-
-  const { isConfigured: isSupabaseConnected } = getSupabaseConfig();
 
   // Load jobs on start
   const loadJobs = async () => {
     setIsLoading(true);
     try {
       const data = await fetchJobs();
-      if (data.length === 0 && !isSupabaseConnected) {
-        // Initialize sample demo jobs if completely empty in local demo mode
+      if (data.length === 0) {
         saveLocalJobs(INITIAL_DEMO_JOBS);
         setJobs(INITIAL_DEMO_JOBS);
       } else {
@@ -153,7 +149,6 @@ export function App() {
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        isSupabaseConnected={isSupabaseConnected}
         counts={counts}
       />
 
@@ -212,11 +207,6 @@ export function App() {
               initialFilter="ALL"
             />
           </div>
-        )}
-
-        {/* Tab 4: ตั้งค่า Supabase */}
-        {activeTab === 'settings' && (
-          <SupabaseSettingsModal onSaved={loadJobs} />
         )}
       </main>
 
