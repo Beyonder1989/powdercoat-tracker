@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface JobDetailModalProps {
   job: PowderCoatJob;
@@ -17,24 +18,25 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onUpdatePriority,
   onOpenDispatch,
 }) => {
+  const { lang, t } = useLanguage();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const getPriorityBadge = (priority?: JobPriority) => {
     switch (priority) {
       case 'URGENT':
         return {
-          label: '🔥 ด่วนที่สุด! • အရေးပေါ် (Urgent)',
+          label: t.priorityUrgent,
           bg: 'bg-red-500/20 text-red-300 border-red-500 animate-pulse font-black',
         };
       case 'HIGH':
         return {
-          label: '⚡ งานด่วน • အရေးကြီး (High)',
+          label: t.priorityHigh,
           bg: 'bg-amber-500/20 text-amber-300 border-amber-500 font-bold',
         };
       case 'NORMAL':
       default:
         return {
-          label: 'ทั่วไป • ပုံမှန် (Normal)',
+          label: t.priorityNormal,
           bg: 'bg-slate-700/50 text-slate-300 border-slate-600',
         };
     }
@@ -44,25 +46,25 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     switch (status) {
       case 'RECEIVED':
         return {
-          label: 'รับเข้าแล้ว (รอพ่น)',
+          label: t.statusReceived,
           bg: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
           dot: 'bg-blue-400',
         };
       case 'IN_PROGRESS':
         return {
-          label: 'กำลังพ่นสี (In Progress)',
+          label: t.statusInProgress,
           bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
           dot: 'bg-amber-400',
         };
       case 'COMPLETED':
         return {
-          label: 'พ่นสีเสร็จสมบูรณ์',
+          label: t.statusCompleted,
           bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
           dot: 'bg-emerald-400',
         };
       case 'DISPATCHED_TO_PACKING':
         return {
-          label: 'ส่งมอบแผนกแพ็คกิ้งแล้ว',
+          label: t.statusDispatched,
           bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
           dot: 'bg-purple-400',
         };
@@ -82,8 +84,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-600 px-6 py-2.5 text-white flex items-center justify-between font-bold text-xs sm:text-sm shadow animate-pulse">
             <div className="flex items-center space-x-2">
               <Flame className="w-5 h-5 text-yellow-300 fill-yellow-300 animate-bounce" />
-              <span>งานด่วนที่สุด ต้องรีบพ่นก่อน!</span>
-              <span className="font-mono bg-white/20 px-2 py-0.5 rounded text-xs">အရေးပေါ် လုပ်ဆောင်ရန်</span>
+              <span>{t.urgentBannerText}</span>
+              <span className="font-mono bg-white/20 px-2 py-0.5 rounded text-xs">{t.urgentNotice}</span>
             </div>
             <span className="text-xs bg-black/30 px-2 py-0.5 rounded font-mono">PRIORITY: URGENT</span>
           </div>
@@ -120,7 +122,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           <div className="bg-slate-950/60 px-6 py-3 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
             <span className="text-slate-400 flex items-center space-x-1.5">
               <ShieldAlert className="w-4 h-4 text-orange-400" />
-              <span>หัวหน้างานปรับสถานะความด่วน:</span>
+              <span>{t.supervisorPriorityLabel}</span>
             </span>
             <div className="flex items-center space-x-2">
               <button
@@ -132,7 +134,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     : 'bg-slate-800 text-red-300 border-red-900/50 hover:bg-red-950/40'
                 }`}
               >
-                🔥 ด่วนมาก! (အရေးပေါ်)
+                {t.btnUrgent}
               </button>
               <button
                 type="button"
@@ -143,7 +145,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     : 'bg-slate-800 text-amber-300 border-amber-900/50 hover:bg-amber-950/40'
                 }`}
               >
-                ⚡ งานด่วน (အရေးကြီး)
+                {t.btnHigh}
               </button>
               <button
                 type="button"
@@ -154,7 +156,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700/50'
                 }`}
               >
-                ปกติ (ပုံမှန်)
+                {t.btnNormal}
               </button>
             </div>
           </div>
@@ -169,16 +171,16 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <span className="text-base font-bold text-white font-mono">{job.model_part_no}</span>
             </div>
             <div>
-              <span className="text-xs text-slate-400 block mb-1">ชิ้นส่วน (Part)</span>
+              <span className="text-xs text-slate-400 block mb-1">{t.partLabel}</span>
               <span className="text-base font-semibold text-orange-400">{job.part_name}</span>
             </div>
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
-              <span className="text-xs text-amber-400 font-semibold block mb-0.5">📍 ตู้สินค้า (BOX)</span>
+              <span className="text-xs text-amber-400 font-semibold block mb-0.5">{t.boxNotice}</span>
               <span className="text-base sm:text-lg font-black text-amber-300 font-mono tracking-wider">{job.container_no}</span>
             </div>
             <div>
-              <span className="text-xs text-slate-400 block mb-1">จำนวน</span>
-              <span className="text-base font-bold text-emerald-400">{job.quantity} ชิ้น</span>
+              <span className="text-xs text-slate-400 block mb-1">{t.qtyLabel}</span>
+              <span className="text-base font-bold text-emerald-400">{job.quantity} {t.pieceUnit}</span>
             </div>
           </div>
 
@@ -186,55 +188,55 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm">
             <h4 className="font-semibold text-slate-200 mb-3 flex items-center space-x-1.5">
               <Clock className="w-4 h-4 text-orange-400" />
-              <span>ประวัติและวันเวลารับเข้า - ส่งมอบ</span>
+              <span>{t.timelineTitle}</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="border-l-2 border-blue-500 pl-3">
-                <span className="text-slate-400 block text-xs">รับเข้าแผนกพ่นสี</span>
+                <span className="text-slate-400 block text-xs">{t.timelineReceived}</span>
                 <span className="text-white font-medium block mt-0.5">
-                  {new Date(job.received_at).toLocaleString('th-TH')}
+                  {new Date(job.received_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')}
                 </span>
                 <span className="text-xs text-slate-400">
-                  ส่งโดย: {job.sender_name} ({job.sender_department})
+                  {t.labelSentBy}: {job.sender_name} ({job.sender_department})
                 </span>
               </div>
 
               <div className="border-l-2 border-amber-500 pl-3">
-                <span className="text-slate-400 block text-xs">เริ่มกระบวนการพ่น</span>
+                <span className="text-slate-400 block text-xs">{t.timelineStarted}</span>
                 <span className="text-white font-medium block mt-0.5">
                   {job.coating_started_at
-                    ? new Date(job.coating_started_at).toLocaleString('th-TH')
+                    ? new Date(job.coating_started_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')
                     : '-'}
                 </span>
-                <span className="text-xs text-slate-400">ผู้รับงาน: {job.receiver_name}</span>
+                <span className="text-xs text-slate-400">{t.labelReceivedBy}: {job.receiver_name}</span>
               </div>
 
               <div className="border-l-2 border-emerald-500 pl-3">
-                <span className="text-slate-400 block text-xs">พ่นสีเสร็จสมบูรณ์</span>
+                <span className="text-slate-400 block text-xs">{t.timelineFinished}</span>
                 <span className="text-white font-medium block mt-0.5">
                   {job.coating_finished_at
-                    ? new Date(job.coating_finished_at).toLocaleString('th-TH')
+                    ? new Date(job.coating_finished_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')
                     : '-'}
                 </span>
-                <span className="text-xs text-slate-400">ตรวจผ่าน QC สี</span>
+                <span className="text-xs text-slate-400">{t.labelQcPassed}</span>
               </div>
 
               <div className="border-l-2 border-purple-500 pl-3">
-                <span className="text-slate-400 block text-xs">ส่งต่อแผนกแพ็คกิ้ง</span>
+                <span className="text-slate-400 block text-xs">{t.timelineDispatched}</span>
                 <span className="text-white font-medium block mt-0.5">
                   {job.dispatched_at
-                    ? new Date(job.dispatched_at).toLocaleString('th-TH')
+                    ? new Date(job.dispatched_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')
                     : '-'}
                 </span>
                 <span className="text-xs text-slate-400">
-                  ผู้รับ: {job.packing_receiver_name || '-'}
+                  {t.labelDispatchedTo}: {job.packing_receiver_name || '-'}
                 </span>
               </div>
             </div>
 
             {job.notes && (
               <div className="mt-4 pt-3 border-t border-slate-700/60 text-xs text-slate-300">
-                <span className="text-slate-400 font-semibold">หมายเหตุ: </span>
+                <span className="text-slate-400 font-semibold">{t.labelNotes}: </span>
                 {job.notes}
               </div>
             )}
@@ -243,14 +245,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           {/* Evidence Photos */}
           <div>
             <h4 className="font-semibold text-slate-200 mb-3 flex items-center space-x-1.5">
-              <span>รูปภาพหลักฐานในระบบ (คลิกที่ภาพเพื่อขยาย)</span>
+              <span>{t.photosTitle}</span>
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Photo 1: Slip */}
               <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-orange-300">1. ใบส่งมอบงาน</span>
+                  <span className="text-xs font-semibold text-orange-300">1. {t.slipPhotoLabel}</span>
                   {job.delivery_slip_image_url && (
                     <a
                       href={job.delivery_slip_image_url}
@@ -259,7 +261,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       className="text-xs text-slate-400 hover:text-white flex items-center space-x-1"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
-                      <span>เปิดภาพเต็ม</span>
+                      <span>{t.btnOpenFullImage}</span>
                     </a>
                   )}
                 </div>
@@ -269,11 +271,11 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 >
                   <img
                     src={job.delivery_slip_image_url}
-                    alt="ใบส่งมอบงาน"
+                    alt={t.slipPhotoLabel}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs transition-opacity">
-                    คลิกเพื่อซูมดูรูป
+                    {t.clickToZoom}
                   </div>
                 </div>
               </div>
@@ -281,7 +283,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               {/* Photo 2: Part */}
               <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-orange-300">2. ตัวชิ้นงานจริง</span>
+                  <span className="text-xs font-semibold text-orange-300">2. {t.partPhotoLabel}</span>
                   {job.part_image_url && (
                     <a
                       href={job.part_image_url}
@@ -290,7 +292,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       className="text-xs text-slate-400 hover:text-white flex items-center space-x-1"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
-                      <span>เปิดภาพเต็ม</span>
+                      <span>{t.btnOpenFullImage}</span>
                     </a>
                   )}
                 </div>
@@ -300,11 +302,11 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 >
                   <img
                     src={job.part_image_url}
-                    alt="ตัวชิ้นงาน"
+                    alt={t.partPhotoLabel}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs transition-opacity">
-                    คลิกเพื่อซูมดูรูป
+                    {t.clickToZoom}
                   </div>
                 </div>
               </div>
@@ -315,7 +317,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         {/* Footer with Workflow Action Buttons */}
         <div className="bg-slate-800/60 px-6 py-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-slate-400">
-            สถานะปัจจุบัน: <strong className="text-white">{statusInfo.label}</strong>
+            {t.statusReceived}: <strong className="text-white">{statusInfo.label}</strong>
           </span>
 
           <div className="flex items-center space-x-2">
@@ -327,7 +329,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 }}
                 className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1.5"
               >
-                <span>เริ่มพ่นสี</span>
+                <span>{t.btnStartCoating}</span>
               </button>
             )}
 
@@ -340,7 +342,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1.5"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>พ่นสีเสร็จสมบูรณ์</span>
+                <span>{t.btnFinishCoating}</span>
               </button>
             )}
 
@@ -352,7 +354,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 }}
                 className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1.5"
               >
-                <span>ส่งมอบให้แผนกแพ็คกิ้ง</span>
+                <span>{t.btnHandoverPacking}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
@@ -361,7 +363,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium"
             >
-              ปิดหน้าต่าง
+              {t.btnClose}
             </button>
           </div>
         </div>

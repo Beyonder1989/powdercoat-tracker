@@ -6,6 +6,7 @@ import { JobDetailModal } from './components/JobDetailModal';
 import { DispatchModal } from './components/DispatchModal';
 import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
 import { PowderCoatJob, JobStatus, JobPriority } from './types';
+import { useLanguage } from './context/LanguageContext';
 
 // Sample mock data for first-time preview if completely empty
 const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
@@ -66,6 +67,7 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
 ];
 
 export function App() {
+  const { lang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing'>('tracker');
   const [jobs, setJobs] = useState<PowderCoatJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -200,13 +202,17 @@ export function App() {
           <div className="space-y-6">
             <div className="bg-purple-950/40 border border-purple-800/80 rounded-2xl p-5 text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold text-white">กระบวนการส่งต่องานให้แผนกแพ็คกิ้ง</h3>
+                <h3 className="text-base font-bold text-white">
+                  {lang === 'my' ? 'ထုပ်ပိုးဌာနသို့ လွှဲပြောင်းပေးအပ်ခြင်း လုပ်ငန်းစဉ်' : 'กระบวนการส่งต่องานให้แผนกแพ็คกิ้ง'}
+                </h3>
                 <p className="text-xs text-purple-300 mt-0.5">
-                  แสดงรายการชิ้นงานที่พ่นสีเสร็จสมบูรณ์แล้ว และชิ้นงานที่ส่งมอบให้แพ็คกิ้งเรียบร้อย
+                  {lang === 'my'
+                    ? 'ဆေးမှုတ်ပြီးစီးသော ပစ္စည်းများနှင့် ထုပ်ပိုးဌာနသို့ ပို့ဆောင်ပြီးသော အလုပ်များ'
+                    : 'แสดงรายการชิ้นงานที่พ่นสีเสร็จสมบูรณ์แล้ว และชิ้นงานที่ส่งมอบให้แพ็คกิ้งเรียบร้อย'}
                 </p>
               </div>
               <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-900 border border-purple-700 text-purple-200">
-                รอส่งมอบ: {counts.COMPLETED} รายการ
+                {lang === 'my' ? 'လွှဲပြောင်းရန်စောင့်ဆိုင်း:' : 'รอส่งมอบ:'} {counts.COMPLETED} {t.pieceUnit}
               </span>
             </div>
 
@@ -252,7 +258,9 @@ export function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        ระบบรับเข้าและติดตามชิ้นงานพ่นสี (Powder Coat Tracker) • รองรับ Supabase, GitHub & Vercel Free Plan
+        {lang === 'my'
+          ? 'Powder Coat Tracker • HAMER 4X4 ဘမ်ဘာ ဆေးမှုတ်စနစ်'
+          : 'ระบบรับเข้าและติดตามชิ้นงานพ่นสี (Powder Coat Tracker) • HAMER 4X4'}
       </footer>
     </div>
   );

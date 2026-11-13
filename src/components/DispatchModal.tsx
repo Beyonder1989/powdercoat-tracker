@@ -3,6 +3,7 @@ import { X, PackageCheck, User, CheckCircle2, ChevronDown, Building2 } from 'luc
 import { PowderCoatJob } from '../types';
 import { DEPARTMENTS } from '../data/masterData';
 import { PACKING_RECEIVERS, getEmployeesByDepartment } from '../data/employeeData';
+import { useLanguage } from '../context/LanguageContext';
 
 interface DispatchModalProps {
   job: PowderCoatJob;
@@ -15,6 +16,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
   onClose,
   onConfirmDispatch,
 }) => {
+  const { lang, t } = useLanguage();
   const [targetDept, setTargetDept] = useState<string>('Packing (PK)');
   
   // Dynamic employees for the target department
@@ -49,19 +51,19 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
     e.preventDefault();
     const effectiveReceiver = (isCustomReceiver ? customReceiverName : receiverName).trim();
     if (!effectiveReceiver) {
-      setError('กรุณาเลือกหรือระบุชื่อเจ้าหน้าที่ผู้รับงาน');
+      setError(lang === 'my' ? 'ကျေးဇူးပြု၍ လက်ခံသူ အမည် ရွေးပါ' : 'กรุณาเลือกหรือระบุชื่อเจ้าหน้าที่ผู้รับงาน');
       return;
     }
 
     try {
       setIsSubmitting(true);
       const noteWithDept = dispatchNotes.trim() 
-        ? `[แผนกรับ: ${targetDept}] ${dispatchNotes.trim()}` 
-        : `[แผนกรับ: ${targetDept}]`;
+        ? `[${targetDept}] ${dispatchNotes.trim()}` 
+        : `[${targetDept}]`;
       await onConfirmDispatch(job.id, effectiveReceiver, noteWithDept);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการส่งมอบงาน');
+      setError(err.message || 'Error dispatching job');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,7 +76,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
         <div className="bg-gradient-to-r from-purple-700 to-indigo-800 px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <PackageCheck className="w-5 h-5" />
-            <h3 className="text-lg font-bold">ส่งมอบงานออกจากแผนกพ่นสี</h3>
+            <h3 className="text-lg font-bold">{t.dispatchTitle}</h3>
           </div>
           <button
             onClick={onClose}
@@ -95,7 +97,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
           {/* Job summary pill */}
           <div className="p-4 bg-slate-800/60 rounded-xl border border-slate-700/80 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">รหัสงาน:</span>
+              <span className="text-slate-400">Tracking Code:</span>
               <span className="font-mono text-orange-400 font-semibold">{job.tracking_code}</span>
             </div>
             <div className="flex justify-between">
@@ -105,9 +107,9 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">ตู้สินค้า / จำนวน:</span>
+              <span className="text-slate-400">{t.boxLabel} / {t.qtyLabel}:</span>
               <span className="text-white">
-                {job.container_no} / <strong className="text-emerald-400">{job.quantity} ชิ้น</strong>
+                {job.container_no} / <strong className="text-emerald-400">{job.quantity} {t.pieceUnit}</strong>
               </span>
             </div>
           </div>
@@ -115,7 +117,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
           {/* แผนกปลายทางที่รับงานออก */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              แผนกผู้รับมอบงานต่อ <span className="text-rose-400">*</span>
+              {t.dispatchTargetDept}
             </label>
             <div className="relative">
               <select
@@ -136,7 +138,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
           {/* ชื่อผู้รับงาน (ดึงตามแผนกปลายทางที่เลือก) */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              ชื่อผู้รับงาน (แผนก {targetDept}) <span className="text-rose-400">*</span>
+              {t.dispatchReceiverStaff} ({targetDept})
             </label>
             <div className="relative">
               <select
@@ -174,7 +176,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="พิมพ์ชื่อและรหัสพนักงานผู้รับงาน..."
+                  placeholder="พิมพ์ชื่อและรหัสพนักงาน..."
                   value={customReceiverName}
                   onChange={(e) => setCustomReceiverName(e.target.value)}
                   className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
@@ -186,7 +188,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              หมายเหตุการส่งมอบ (ถ้ามี)
+              {t.dispatchNotes}
             </label>
             <textarea
               rows={2}
@@ -204,7 +206,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium"
             >
-              ยกเลิก
+              {t.btnCancel}
             </button>
             <button
               type="submit"
@@ -212,11 +214,11 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
               className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 flex items-center space-x-1.5 disabled:opacity-50"
             >
               {isSubmitting ? (
-                <span>กำลังบันทึก...</span>
+                <span>...</span>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>ยืนยันการส่งมอบ</span>
+                  <span>{t.dispatchConfirmBtn}</span>
                 </>
               )}
             </button>

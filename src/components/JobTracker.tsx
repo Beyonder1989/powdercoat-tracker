@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface JobTrackerProps {
   jobs: PowderCoatJob[];
@@ -25,6 +26,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   onDeleteJob,
   initialFilter = 'ALL',
 }) => {
+  const { lang, t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL' | 'URGENT_ONLY'>(initialFilter);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -74,25 +76,25 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
     switch (status) {
       case 'RECEIVED':
         return {
-          label: 'รอพ่นสี',
+          label: t.statusReceived,
           bg: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
           dot: 'bg-blue-400',
         };
       case 'IN_PROGRESS':
         return {
-          label: 'กำลังพ่นสี',
+          label: t.statusInProgress,
           bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
           dot: 'bg-amber-400',
         };
       case 'COMPLETED':
         return {
-          label: 'พ่นสีเสร็จสมบูรณ์',
+          label: t.statusCompleted,
           bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
           dot: 'bg-emerald-400',
         };
       case 'DISPATCHED_TO_PACKING':
         return {
-          label: 'ส่งแพ็คกิ้งแล้ว',
+          label: t.statusDispatched,
           bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
           dot: 'bg-purple-400',
         };
@@ -104,8 +106,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
       case 'URGENT':
         return {
           isUrgent: true,
-          labelTh: 'ด่วนที่สุด!',
-          labelMy: 'အရေးပေါ်',
+          label: t.priorityUrgent,
           badgeClass: 'bg-rose-950 text-rose-200 border-rose-500 animate-pulse',
           cardClass: 'border-rose-500/90 shadow-2xl shadow-rose-950/60 ring-2 ring-rose-500/50',
           banner: 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700',
@@ -113,16 +114,14 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
       case 'HIGH':
         return {
           isHigh: true,
-          labelTh: 'งานด่วน',
-          labelMy: 'အရေးကြီး',
+          label: t.priorityHigh,
           badgeClass: 'bg-amber-950 text-amber-200 border-amber-500/90',
           cardClass: 'border-amber-500/70 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/30',
           banner: 'bg-gradient-to-r from-amber-600 to-orange-600',
         };
       default:
         return {
-          labelTh: 'ปกติ',
-          labelMy: 'ပုံမှန်',
+          label: t.priorityNormal,
           badgeClass: 'bg-slate-800 text-slate-300 border-slate-700',
           cardClass: 'border-slate-800 hover:border-slate-700',
           banner: null,
@@ -141,7 +140,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="ค้นหา: ตู้สินค้า, Model, Part, ชื่อผู้ส่ง, แผนก, รหัสงาน..."
+              placeholder={t.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
@@ -158,7 +157,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                 className={`p-1.5 rounded-lg text-xs transition-colors ${
                   viewMode === 'cards' ? 'bg-orange-600 text-white shadow' : 'text-slate-400 hover:text-white'
                 }`}
-                title="มุมมองการ์ด (Cards)"
+                title="Cards View"
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
@@ -167,7 +166,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                 className={`p-1.5 rounded-lg text-xs transition-colors ${
                   viewMode === 'table' ? 'bg-orange-600 text-white shadow' : 'text-slate-400 hover:text-white'
                 }`}
-                title="มุมมองตาราง (Table)"
+                title="Table View"
               >
                 <TableIcon className="w-4 h-4" />
               </button>
@@ -180,13 +179,13 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
               className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">รีเฟรช</span>
+              <span className="hidden sm:inline">{t.refresh}</span>
             </button>
           </div>
         </div>
 
         {/* Status Filter Pills */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs scrollbar-none">
           {/* ปุ่มงานด่วนพิเศษ */}
           <button
             onClick={() => setStatusFilter(statusFilter === 'URGENT_ONLY' ? 'ALL' : 'URGENT_ONLY')}
@@ -197,7 +196,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             }`}
           >
             <Flame className="w-4 h-4 text-rose-400 animate-pulse" />
-            <span>🔥 เฉพาะงานด่วน • အရေးပေါ် ({urgentCount})</span>
+            <span>{t.filterUrgentOnly} ({urgentCount})</span>
           </button>
 
           <button
@@ -208,7 +207,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                 : 'bg-slate-800/80 text-slate-400 hover:text-white border border-slate-700/60'
             }`}
           >
-            ทั้งหมด ({jobs.length})
+            {t.filterAll} ({jobs.length})
           </button>
           <button
             onClick={() => setStatusFilter('RECEIVED')}
@@ -219,7 +218,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-            <span>รอพ่นสี ({jobs.filter((j) => j.status === 'RECEIVED').length})</span>
+            <span>{t.filterReceived} ({jobs.filter((j) => j.status === 'RECEIVED').length})</span>
           </button>
           <button
             onClick={() => setStatusFilter('IN_PROGRESS')}
@@ -230,7 +229,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-            <span>กำลังพ่นสี ({jobs.filter((j) => j.status === 'IN_PROGRESS').length})</span>
+            <span>{t.filterInProgress} ({jobs.filter((j) => j.status === 'IN_PROGRESS').length})</span>
           </button>
           <button
             onClick={() => setStatusFilter('COMPLETED')}
@@ -241,7 +240,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>พ่นสีเสร็จแล้ว ({jobs.filter((j) => j.status === 'COMPLETED').length})</span>
+            <span>{t.filterCompleted} ({jobs.filter((j) => j.status === 'COMPLETED').length})</span>
           </button>
           <button
             onClick={() => setStatusFilter('DISPATCHED_TO_PACKING')}
@@ -252,7 +251,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-            <span>ส่งแพ็คกิ้งแล้ว ({jobs.filter((j) => j.status === 'DISPATCHED_TO_PACKING').length})</span>
+            <span>{t.filterDispatched} ({jobs.filter((j) => j.status === 'DISPATCHED_TO_PACKING').length})</span>
           </button>
         </div>
       </div>
@@ -263,10 +262,8 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
           <div className="w-16 h-16 rounded-2xl bg-slate-800 text-slate-500 mx-auto flex items-center justify-center mb-4">
             <Package className="w-8 h-8" />
           </div>
-          <h3 className="text-base font-semibold text-slate-300">ไม่พบรายการงาน</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            {searchQuery ? 'ลองเปลี่ยนคำค้นหา หรือเลือกตัวกรองสถานะอื่น' : 'ยังไม่มีงานรับเข้าในระบบ กดปุ่ม "รับเข้างานใหม่" เพื่อเริ่มต้น'}
-          </p>
+          <h3 className="text-base font-semibold text-slate-300">{t.emptyTitle}</h3>
+          <p className="text-xs text-slate-500 mt-1">{t.emptySubtitle}</p>
         </div>
       ) : viewMode === 'cards' ? (
         /* Card Grid View */
@@ -280,7 +277,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                 key={job.id}
                 className={`bg-slate-900 border rounded-2xl transition-all flex flex-col justify-between overflow-hidden group ${priorityInfo.cardClass}`}
               >
-                {/* 🔴 แถบสีด้านบนสำหรับงานด่วน/ด่วนที่สุด พร้อมภาษาพม่าสะดุดตา */}
+                {/* 🔴 แถบสีด้านบนสำหรับงานด่วน/ด่วนที่สุด */}
                 {priorityInfo.banner && (
                   <div className={`px-4 py-1.5 text-xs font-black flex items-center justify-between tracking-wide shadow-md ${priorityInfo.banner}`}>
                     <div className="flex items-center space-x-1.5">
@@ -289,9 +286,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                       ) : (
                         <Zap className="w-4 h-4" />
                       )}
-                      <span>{priorityInfo.labelTh}</span>
-                      <span>•</span>
-                      <span className="text-sm">{priorityInfo.labelMy}</span>
+                      <span>{priorityInfo.label}</span>
                     </div>
                     <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-mono font-bold">
                       {job.priority}
@@ -310,8 +305,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     <div className="flex items-center space-x-1.5">
                       {/* Priority pill */}
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${priorityInfo.badgeClass}`}>
-                        <span className="mr-1">{priorityInfo.labelTh}</span>
-                        <span className="text-[10px] opacity-90">({priorityInfo.labelMy})</span>
+                        {priorityInfo.label}
                       </span>
 
                       {/* Status pill */}
@@ -324,7 +318,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     </div>
                   </div>
 
-                  {/* 📍 HIGHLIGHTED BOX / CONTAINER NO FOR FACTORY WORKERS (ใหญ่สะดุดตา ช่างพม่าเห็นปุ๊บรู้เลยว่าต้องไปหยิบตู้ไหน) */}
+                  {/* 📍 HIGHLIGHTED BOX / CONTAINER NO FOR FACTORY WORKERS (ใหญ่สะดุดตา ช่างมองปุ๊บรู้เลยว่าต้องไปหยิบตู้ไหน) */}
                   <div className={`rounded-xl p-3.5 border-2 flex items-center justify-between transition-colors ${
                     job.priority === 'URGENT' 
                       ? 'bg-rose-950/40 border-rose-500/80 shadow-lg shadow-rose-950/30' 
@@ -334,16 +328,16 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                   }`}>
                     <div>
                       <span className="text-[11px] font-bold uppercase tracking-wider text-orange-400 flex items-center space-x-1">
-                        <span>📍 หมายเลขตู้สินค้า (BOX)</span>
+                        <span>{t.boxNotice}</span>
                       </span>
                       <span className="text-xl sm:text-2xl font-black text-white tracking-wide font-mono block mt-0.5">
                         {job.container_no}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[11px] text-slate-400 block">จำนวน</span>
+                      <span className="text-[11px] text-slate-400 block">{t.qtyLabel}</span>
                       <span className="text-lg sm:text-xl font-bold text-emerald-400">
-                        {job.quantity} ชิ้น
+                        {job.quantity} {t.pieceUnit}
                       </span>
                     </div>
                   </div>
@@ -361,24 +355,24 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                   {/* Metadata Box */}
                   <div className="bg-slate-800/60 rounded-xl p-3 text-xs space-y-2 border border-slate-700/60">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">แผนกผู้นำส่ง:</span>
+                      <span className="text-slate-400">{t.senderDeptLabel}:</span>
                       <span className="text-slate-200 font-medium">{job.sender_department}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">ผู้ส่งมอบ:</span>
+                      <span className="text-slate-400">{t.senderNameLabel}:</span>
                       <span className="text-slate-200">{job.sender_name}</span>
                     </div>
                     <div className="flex justify-between pt-1 border-t border-slate-700/60 text-slate-400">
                       <span className="flex items-center space-x-1">
                         <Clock className="w-3.5 h-3.5 text-orange-400" />
-                        <span>เวลารับเข้า:</span>
+                        <span>{t.receivedTimeLabel}:</span>
                       </span>
                       <span className="text-slate-300">
-                        {new Date(job.received_at).toLocaleDateString('th-TH', {
+                        {new Date(job.received_at).toLocaleDateString(lang === 'my' ? 'en-GB' : 'th-TH', {
                           month: 'short',
                           day: 'numeric',
                         })}{' '}
-                        {new Date(job.received_at).toLocaleTimeString('th-TH', {
+                        {new Date(job.received_at).toLocaleTimeString(lang === 'my' ? 'en-GB' : 'th-TH', {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
@@ -398,7 +392,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                         className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
                       />
                       <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 truncate font-medium">
-                        ใบส่งมอบงาน
+                        {t.slipPhotoLabel}
                       </div>
                     </div>
                     <div
@@ -411,7 +405,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                         className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
                       />
                       <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-300 truncate font-medium">
-                        ตัวชิ้นงานจริง
+                        {t.partPhotoLabel}
                       </div>
                     </div>
                   </div>
@@ -423,7 +417,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                   {onUpdatePriority && (
                     <div className="flex items-center justify-between text-xs bg-black/30 p-1.5 rounded-xl border border-slate-700/60">
                       <span className="text-[11px] text-slate-400 font-medium pl-1">
-                        ความด่วน (หัวหน้า):
+                        {t.supervisorPriorityLabel}
                       </span>
                       <div className="flex items-center space-x-1">
                         <button
@@ -433,9 +427,9 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               ? 'bg-emerald-600 text-white'
                               : 'text-slate-400 hover:text-white'
                           }`}
-                          title="ปกติ (ပုံမှန်)"
+                          title="Normal"
                         >
-                          ปกติ
+                          {t.btnNormal}
                         </button>
                         <button
                           onClick={() => onUpdatePriority(job.id, 'HIGH')}
@@ -444,9 +438,9 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               ? 'bg-amber-600 text-white'
                               : 'text-slate-400 hover:text-amber-300'
                           }`}
-                          title="งานด่วน (အရေးကြီး)"
+                          title="High"
                         >
-                          ⚡ด่วน
+                          {t.btnHigh}
                         </button>
                         <button
                           onClick={() => onUpdatePriority(job.id, 'URGENT')}
@@ -455,9 +449,9 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               ? 'bg-rose-600 text-white animate-pulse'
                               : 'text-slate-400 hover:text-rose-400'
                           }`}
-                          title="ด่วนที่สุด (အရေးပေါ်)"
+                          title="Urgent"
                         >
-                          🔥ด่วนมาก!
+                          {t.btnUrgent}
                         </button>
                       </div>
                     </div>
@@ -468,10 +462,10 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     <button
                       onClick={() => onSelectJob(job)}
                       className="p-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs transition-colors flex items-center space-x-1"
-                      title="ดูหลักฐานและข้อมูลทั้งหมด"
+                      title={t.btnViewDetail}
                     >
                       <Eye className="w-4 h-4" />
-                      <span className="hidden sm:inline">ดูรายละเอียด</span>
+                      <span className="hidden sm:inline">{t.btnViewDetail}</span>
                     </button>
 
                     <div className="flex items-center space-x-1.5">
@@ -480,7 +474,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
                           className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors"
                         >
-                          เริ่มพ่นสี
+                          {t.btnStartCoating}
                         </button>
                       )}
 
@@ -490,7 +484,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>พ่นเสร็จ</span>
+                          <span>{t.btnFinishCoating}</span>
                         </button>
                       )}
 
@@ -499,25 +493,25 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           onClick={() => onOpenDispatch(job)}
                           className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
                         >
-                          <span>ส่งแพ็คกิ้ง</span>
+                          <span>{t.btnHandoverPacking}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       )}
 
                       {job.status === 'DISPATCHED_TO_PACKING' && (
                         <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
-                          ถึงแพ็คกิ้งแล้ว
+                          {t.statusDispatched}
                         </span>
                       )}
 
                       <button
                         onClick={() => {
-                          if (confirm(`คุณต้องการลบรายการงาน ${job.tracking_code} ใช่หรือไม่?`)) {
+                          if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
                             onDeleteJob(job.id);
                           }
                         }}
                         className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
-                        title="ลบรายการ"
+                        title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -535,14 +529,14 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-slate-800/80 border-b border-slate-700/80 text-slate-300 uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="px-4 py-3.5">ความเร่งด่วน</th>
-                  <th className="px-4 py-3.5">รหัสงาน / เวลารับ</th>
-                  <th className="px-4 py-3.5">ตู้สินค้า / จำนวน</th>
+                  <th className="px-4 py-3.5">{t.supervisorPriorityLabel}</th>
+                  <th className="px-4 py-3.5">{t.receivedTimeLabel}</th>
+                  <th className="px-4 py-3.5">{t.boxLabel} / {t.qtyLabel}</th>
                   <th className="px-4 py-3.5">Model / Part</th>
-                  <th className="px-4 py-3.5">แผนก / ผู้ส่ง</th>
-                  <th className="px-4 py-3.5">รูปหลักฐาน</th>
-                  <th className="px-4 py-3.5">สถานะ</th>
-                  <th className="px-4 py-3.5 text-right">การจัดการ</th>
+                  <th className="px-4 py-3.5">{t.senderDeptLabel} / {t.senderNameLabel}</th>
+                  <th className="px-4 py-3.5">{t.photosTitle}</th>
+                  <th className="px-4 py-3.5">{t.statusReceived}</th>
+                  <th className="px-4 py-3.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -553,7 +547,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     <tr key={job.id} className={`hover:bg-slate-800/40 transition-colors ${job.priority === 'URGENT' ? 'bg-rose-950/20' : ''}`}>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${priorityInfo.badgeClass}`}>
-                          {priorityInfo.labelTh} ({priorityInfo.labelMy})
+                          {priorityInfo.label}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -561,8 +555,8 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           {job.tracking_code}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          {new Date(job.received_at).toLocaleDateString('th-TH')}{' '}
-                          {new Date(job.received_at).toLocaleTimeString('th-TH', {
+                          {new Date(job.received_at).toLocaleDateString(lang === 'my' ? 'en-GB' : 'th-TH')}{' '}
+                          {new Date(job.received_at).toLocaleTimeString(lang === 'my' ? 'en-GB' : 'th-TH', {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
@@ -571,7 +565,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                       <td className="px-4 py-3">
                         <div className="font-mono font-bold text-base text-white">{job.container_no}</div>
                         <div className="text-emerald-400 text-xs font-semibold">
-                          {job.quantity} ชิ้น
+                          {job.quantity} {t.pieceUnit}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -589,14 +583,14 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                             src={job.delivery_slip_image_url}
                             alt="Slip"
                             className="w-8 h-8 rounded object-cover cursor-pointer hover:opacity-80 border border-slate-700"
-                            title="คลิกดูใบส่งมอบ"
+                            title={t.slipPhotoLabel}
                           />
                           <img
                             onClick={() => onSelectJob(job)}
                             src={job.part_image_url}
                             alt="Part"
                             className="w-8 h-8 rounded object-cover cursor-pointer hover:opacity-80 border border-slate-700"
-                            title="คลิกดูตัวชิ้นงาน"
+                            title={t.partPhotoLabel}
                           />
                         </div>
                       </td>
@@ -613,7 +607,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           <button
                             onClick={() => onSelectJob(job)}
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
-                            title="ดูรายละเอียด"
+                            title={t.btnViewDetail}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -623,7 +617,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
                               className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold"
                             >
-                              เริ่มพ่น
+                              {t.btnStartCoating}
                             </button>
                           )}
                           {job.status === 'IN_PROGRESS' && (
@@ -631,7 +625,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
                               className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
                             >
-                              เสร็จ
+                              {t.btnFinishCoating}
                             </button>
                           )}
                           {job.status === 'COMPLETED' && (
@@ -639,18 +633,18 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               onClick={() => onOpenDispatch(job)}
                               className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold"
                             >
-                              ส่งแพ็คกิ้ง
+                              {t.btnHandoverPacking}
                             </button>
                           )}
 
                           <button
                             onClick={() => {
-                              if (confirm(`ต้องการลบงาน ${job.tracking_code}?`)) {
+                              if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
                                 onDeleteJob(job.id);
                               }
                             }}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400"
-                            title="ลบ"
+                            title="Delete"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

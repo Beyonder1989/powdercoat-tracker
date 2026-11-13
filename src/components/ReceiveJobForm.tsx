@@ -4,6 +4,7 @@ import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO } from '../data/masterData';
 import { getEmployeesByDepartment, POWDER_COAT_RECEIVERS } from '../data/employeeData';
 import { uploadEvidenceImage, createJob } from '../lib/supabase';
 import { PowderCoatJob, JobPriority } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ReceiveJobFormProps {
   onSuccess: (newJob: PowderCoatJob) => void;
@@ -11,6 +12,7 @@ interface ReceiveJobFormProps {
 }
 
 export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCancel }) => {
+  const { lang, t } = useLanguage();
   // Form states
   const [department, setDepartment] = useState<string>('Laser(LS)');
   const [modelPartNo, setModelPartNo] = useState<string>('');
@@ -172,20 +174,20 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold flex items-center space-x-2">
-                <span>บันทึกรับเข้าอะไหล่กันชน (แผนกพ่นสี)</span>
+                <span>{t.formTitle}</span>
               </h2>
               <p className="text-orange-100 text-xs sm:text-sm mt-1">
-                กรอกข้อมูลผู้ส่งมอบ รายละเอียด Model และถ่ายรูปหลักฐานทั้ง 2 จุด
+                {t.formSubtitle}
               </p>
             </div>
             <div className="hidden sm:block text-right text-xs text-orange-200 bg-black/20 px-3 py-2 rounded-xl backdrop-blur">
               <div className="flex items-center space-x-1.5 justify-end">
                 <Calendar className="w-3.5 h-3.5" />
-                <span>{new Date().toLocaleDateString('th-TH', { dateStyle: 'medium' })}</span>
+                <span>{new Date().toLocaleDateString(lang === 'my' ? 'en-GB' : 'th-TH', { dateStyle: 'medium' })}</span>
               </div>
               <div className="flex items-center space-x-1.5 justify-end mt-0.5">
                 <Clock className="w-3.5 h-3.5" />
-                <span>เวลาปัจจุบันอัตโนมัติ</span>
+                <span>{lang === 'my' ? 'လက်ရှိအချိန်' : 'เวลาปัจจุบันอัตโนมัติ'}</span>
               </div>
             </div>
           </div>
@@ -207,14 +209,14 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
           <div>
             <h3 className="text-base font-semibold text-white flex items-center space-x-2 mb-4 pb-2 border-b border-slate-800">
               <Building2 className="w-4 h-4 text-orange-400" />
-              <span>1. ข้อมูลแผนกต้นทางและผู้ส่งมอบ</span>
+              <span>{t.step1Title}</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* แผนกที่นำมาส่ง */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  แผนกผู้นำส่ง <span className="text-rose-400">*</span>
+                  {t.labelSenderDept}
                 </label>
                 <div className="relative">
                   <select
@@ -235,7 +237,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               {/* ใครเป็นคนเอางานมาส่ง (ดึงรายชื่อตามแผนกที่เลือก) */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  ชื่อผู้ส่งมอบงาน ({department}) <span className="text-rose-400">*</span>
+                  {t.labelSenderName} ({department})
                 </label>
                 <div className="relative">
                   <select
@@ -286,13 +288,13 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               {/* หมายเลขตู้สินค้า */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  ตู้สินค้าหมายเลขใด <span className="text-rose-400">*</span>
+                  {t.labelContainerNo}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    placeholder="เช่น T-04, BOX-12, LOT-2026/11"
+                    placeholder={t.placeholderContainerNo}
                     value={containerNo}
                     onChange={(e) => setContainerNo(e.target.value)}
                     className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
@@ -307,14 +309,14 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
           <div>
             <h3 className="text-base font-semibold text-white flex items-center space-x-2 mb-4 pb-2 border-b border-slate-800">
               <Package className="w-4 h-4 text-orange-400" />
-              <span>2. รายละเอียด Model และ ชิ้นส่วน (Part)</span>
+              <span>{lang === 'my' ? '၂။ မော်ဒယ်နှင့် ပစ္စည်းအသေးစိတ်' : '2. รายละเอียด Model และ ชิ้นส่วน (Part)'}</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* Model / Part No. (Combobox ค้นหาได้จาก 2,000+ รายการ) */}
               <div className="relative">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  Model / Part No. <span className="text-rose-400">*</span>
+                  {t.labelModelPartNo}
                 </label>
                 <div className="relative">
                   <input
@@ -421,7 +423,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               {/* จำนวนชิ้น */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  จำนวนชิ้นงาน (Quantity) <span className="text-rose-400">*</span>
+                  {t.labelQuantity} <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -440,9 +442,11 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
               <label className="text-sm font-semibold text-white flex items-center space-x-2">
                 <Flame className="w-4 h-4 text-rose-400" />
-                <span>ระดับความเร่งด่วนของงาน (Priority / ဦးစားပေးအဆင့်)</span>
+                <span>{t.step2Title}</span>
               </label>
-              <span className="text-xs text-amber-400/90 font-medium">กำหนดโดยหัวหน้างาน / รองหัวหน้า</span>
+              <span className="text-xs text-amber-400/90 font-medium">
+                {lang === 'my' ? 'ကြီးကြပ်သူ သတ်မှတ်ချက်' : 'กำหนดโดยหัวหน้างาน / รองหัวหน้า'}
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -458,9 +462,11 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               >
                 <div className="flex items-center space-x-1.5 font-bold text-sm text-emerald-400">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                  <span>งานปกติ (NORMAL)</span>
+                  <span>{t.priorityNormal}</span>
                 </div>
-                <span className="text-xs text-slate-300 font-medium mt-1">ပုံမှန် (ตามคิวทั่วไป)</span>
+                <span className="text-xs text-slate-300 font-medium mt-1">
+                  {lang === 'my' ? 'ပုံမှန် (သာမန် အလုပ်စဉ်)' : 'ပုံမှန် (ตามคิวทั่วไป)'}
+                </span>
               </button>
 
               {/* HIGH */}
@@ -475,9 +481,11 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               >
                 <div className="flex items-center space-x-1.5 font-bold text-sm text-amber-300">
                   <Zap className="w-4 h-4 text-amber-400" />
-                  <span>งานด่วน (HIGH)</span>
+                  <span>{t.priorityHigh}</span>
                 </div>
-                <span className="text-xs text-amber-300/90 font-medium mt-1">အရေးကြီး (เร่งรอบพิเศษ)</span>
+                <span className="text-xs text-amber-300/90 font-medium mt-1">
+                  {lang === 'my' ? 'အရေးကြီး (အထူး အမြန်)' : 'အရေးကြီး (เร่งรอบพิเศษ)'}
+                </span>
               </button>
 
               {/* URGENT */}
@@ -492,9 +500,11 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               >
                 <div className="flex items-center space-x-1.5 font-bold text-sm text-rose-400 animate-pulse">
                   <Flame className="w-4 h-4 text-rose-500" />
-                  <span>ด่วนที่สุด! (URGENT)</span>
+                  <span>{t.priorityUrgent}</span>
                 </div>
-                <span className="text-xs text-rose-200 font-bold mt-1">အရေးပေါ် (หยิบไปพ่นทันที!)</span>
+                <span className="text-xs text-rose-200 font-bold mt-1">
+                  {lang === 'my' ? 'အရေးပေါ် (ချက်ချင်း ဆေးမှုတ်ရမည်)' : 'အရေးပေါ် (หยิบไปพ่นทันที!)'}
+                </span>
               </button>
             </div>
           </div>
@@ -503,10 +513,12 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
           <div>
             <h3 className="text-base font-semibold text-white flex items-center space-x-2 mb-2 pb-2 border-b border-slate-800">
               <Camera className="w-4 h-4 text-orange-400" />
-              <span>3. ถ่ายรูปหลักฐานเพื่อเก็บเข้าฐานข้อมูล (2 ภาพ)</span>
+              <span>{t.step3Title}</span>
             </h3>
             <p className="text-xs text-slate-400 mb-5">
-              ระบบจะทำการบีบอัดภาพให้อัตโนมัติ เพื่อให้โหลดไวและไม่เปลืองพื้นที่จัดเก็บ
+              {lang === 'my' 
+                ? 'စနစ်သည် ဓာတ်ပုံအရွယ်အစားကို အလိုအလျောက် ချုံ့ပေးမည်ဖြစ်သည်' 
+                : 'ระบบจะทำการบีบอัดภาพให้อัตโนมัติ เพื่อให้โหลดไวและไม่เปลืองพื้นที่จัดเก็บ'}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -515,8 +527,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-sm font-semibold text-orange-300 flex items-center space-x-1.5">
                     <FileText className="w-4 h-4" />
-                    <span>1. รูปถ่ายใบส่งมอบงาน</span>
-                    <span className="text-rose-400">*</span>
+                    <span>{t.photo1Title}</span>
                   </label>
                   {slipPreview && (
                     <button
@@ -528,7 +539,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       className="text-xs text-rose-400 hover:underline flex items-center space-x-1"
                     >
                       <X className="w-3.5 h-3.5" />
-                      <span>ลบรูป</span>
+                      <span>{lang === 'my' ? 'ဖျက်မည်' : 'ลบรูป'}</span>
                     </button>
                   )}
                 </div>
@@ -554,7 +565,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-xs space-x-2"
                     >
                       <Camera className="w-4 h-4" />
-                      <span>คลิกเพื่อถ่ายใหม่</span>
+                      <span>{t.photoChange}</span>
                     </div>
                   </div>
                 ) : (
@@ -566,10 +577,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       <Camera className="w-6 h-6" />
                     </div>
                     <span className="text-sm font-medium text-slate-200">
-                      กดเพื่อถ่ายรูปใบส่งมอบงาน
-                    </span>
-                    <span className="text-xs text-slate-400 mt-1">
-                      หรือเลือกรูปจากเครื่อง/แกลเลอรี
+                      {t.photoTapCamera}
                     </span>
                   </div>
                 )}
@@ -580,8 +588,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-sm font-semibold text-orange-300 flex items-center space-x-1.5">
                     <Package className="w-4 h-4" />
-                    <span>2. รูปถ่ายตัวชิ้นงานจริง</span>
-                    <span className="text-rose-400">*</span>
+                    <span>{t.photo2Title}</span>
                   </label>
                   {partPreview && (
                     <button
@@ -593,7 +600,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       className="text-xs text-rose-400 hover:underline flex items-center space-x-1"
                     >
                       <X className="w-3.5 h-3.5" />
-                      <span>ลบรูป</span>
+                      <span>{lang === 'my' ? 'ဖျက်မည်' : 'ลบรูป'}</span>
                     </button>
                   )}
                 </div>
@@ -619,7 +626,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-xs space-x-2"
                     >
                       <Camera className="w-4 h-4" />
-                      <span>คลิกเพื่อถ่ายใหม่</span>
+                      <span>{t.photoChange}</span>
                     </div>
                   </div>
                 ) : (
@@ -631,10 +638,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       <Camera className="w-6 h-6" />
                     </div>
                     <span className="text-sm font-medium text-slate-200">
-                      กดเพื่อถ่ายรูปตัวชิ้นงานจริง
-                    </span>
-                    <span className="text-xs text-slate-400 mt-1">
-                      หรือเลือกรูปจากเครื่อง/แกลเลอรี
+                      {t.photoTapCamera}
                     </span>
                   </div>
                 )}
@@ -646,7 +650,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                ผู้รับงานเข้าแผนกพ่นสี (POWDER COATING) <span className="text-rose-400">*</span>
+                {t.labelCoatingReceiver}
               </label>
               <div className="relative">
                 <select
@@ -690,13 +694,13 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                หมายเหตุเพิ่มเติม (ถ้ามี)
+                {t.labelNotes}
               </label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="เช่น งานด่วน, รอสีดำเงา, มีรอยขีดข่วนก่อนพ่น"
+                placeholder={t.placeholderNotes}
                 className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
@@ -710,7 +714,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               onClick={onCancel}
               className="w-full sm:w-auto px-6 py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-medium transition-colors"
             >
-              ยกเลิก
+              {t.btnCancel}
             </button>
 
             <button
@@ -721,12 +725,12 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>{uploadStatus || 'กำลังบันทึก...'}</span>
+                  <span>{uploadStatus || (lang === 'my' ? 'သိမ်းဆည်းနေသည်...' : 'กำลังบันทึก...')}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-5 h-5" />
-                  <span>ยืนยันรับเข้างานและบันทึกรูป</span>
+                  <span>{t.btnSubmitJob}</span>
                 </>
               )}
             </button>
