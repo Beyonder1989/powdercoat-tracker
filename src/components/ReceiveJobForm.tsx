@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Camera, Upload, CheckCircle2, AlertCircle, X, Search, ChevronDown, Calendar, Clock, User, Package, Building2, Hash, FileText } from 'lucide-react';
 import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO } from '../data/masterData';
+import { getEmployeesByDepartment, POWDER_COAT_RECEIVERS } from '../data/employeeData';
 import { uploadEvidenceImage, createJob } from '../lib/supabase';
 import { PowderCoatJob } from '../types';
 
@@ -15,10 +16,21 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
   const [modelPartNo, setModelPartNo] = useState<string>('');
   const [partName, setPartName] = useState<string>('กันชนหน้า');
   const [customPartName, setCustomPartName] = useState<string>('');
-  const [senderName, setSenderName] = useState<string>('');
+  
+  // Senders list based on department
+  const initialSenders = getEmployeesByDepartment('Laser(LS)');
+  const [senderName, setSenderName] = useState<string>(initialSenders[0]?.displayName || '');
+  const [isCustomSender, setIsCustomSender] = useState<boolean>(false);
+  const [customSenderName, setCustomSenderName] = useState<string>('');
+
   const [containerNo, setContainerNo] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
-  const [receiverName, setReceiverName] = useState<string>('เจ้าหน้าที่พ่นสี');
+  
+  // Receivers in Powder Coat
+  const [receiverName, setReceiverName] = useState<string>(POWDER_COAT_RECEIVERS[0]?.displayName || 'สุรวุฒิ กระโพธิ์ (ปอนด์) (600096)');
+  const [isCustomReceiver, setIsCustomReceiver] = useState<boolean>(false);
+  const [customReceiverName, setCustomReceiverName] = useState<string>('');
+
   const [notes, setNotes] = useState<string>('');
 
   // Photos
@@ -47,6 +59,23 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
     const q = modelSearch.toLowerCase();
     return MODELS_PART_NO.filter((m) => m.toLowerCase().includes(q)).slice(0, 50);
   }, [modelSearch]);
+
+  // Senders dynamically derived from selected department
+  const departmentSenders = useMemo(() => {
+    return getEmployeesByDepartment(department);
+  }, [department]);
+
+  const handleDepartmentChange = (newDept: string) => {
+    setDepartment(newDept);
+    const emps = getEmployeesByDepartment(newDept);
+    if (emps.length > 0) {
+      setSenderName(emps[0].displayName);
+      setIsCustomSender(false);
+    } else {
+      setSenderName('');
+      setIsCustomSender(true);
+    }
+  };
 
   const handleSlipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -78,8 +107,14 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
       setErrorMessage('กรุณาระบุ หมายเลขตู้สินค้า');
       return;
     }
-    if (!senderName.trim()) {
-      setErrorMessage('กรุณาระบุ ชื่อผู้นำของมาส่ง');
+    const effectiveSender = (isCustomSender ? customSenderName : senderName).trim();
+    if (!effectiveSender) {
+      setErrorMessage('กรุณาเลือกหรือระบุ ชื่อผู้นำของมาส่ง');
+      return;
+    }
+    const effectiveReceiver = (isCustomReceiver ? customReceiverName : receiverName).trim();
+    if (!effectiveReceiver) {
+      setErrorMessage('กรุณาเลือกหรือระบุ ชื่อผู้รับงาน (แผนกพ่นสี)');
       return;
     }
     if (!slipFile) {
@@ -106,14 +141,14 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
         sender_department: department,
         model_part_no: effectivePartNo.trim(),
         part_name: finalPartName,
-        sender_name: senderName.trim(),
+        sender_name: effectiveSender,
         container_no: containerNo.trim(),
         quantity: Number(quantity) || 1,
         delivery_slip_image_url: slipUrl,
         part_image_url: partUrl,
         status: 'RECEIVED',
         received_at: new Date().toISOString(),
-        receiver_name: receiverName.trim() || 'เจ้าหน้าที่พ่นสี',
+        receiver_name: effectiveReceiver,
         notes: notes.trim(),
       });
 
@@ -182,8 +217,8 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                 <div className="relative">
                   <select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
+                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-medium"
                   >
                     {DEPARTMENTS.map((dept) => (
                       <option key={dept} value={dept} className="bg-slate-800 text-white">
@@ -195,22 +230,55 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                 </div>
               </div>
 
-              {/* ใครเป็นคนเอางานมาส่ง */}
+              {/* ใครเป็นคนเอางานมาส่ง (ดึงรายชื่อตามแผนกที่เลือก) */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  ชื่อผู้ส่งมอบงาน <span className="text-rose-400">*</span>
+                  ชื่อผู้ส่งมอบงาน ({department}) <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="เช่น สมชาย, มานะ, กอล์ฟ"
-                    value={senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
-                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                  />
-                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <select
+                    value={isCustomSender ? '__custom__' : senderName}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomSender(true);
+                      } else {
+                        setIsCustomSender(false);
+                        setSenderName(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                  >
+                    {departmentSenders.length > 0 ? (
+                      departmentSenders.map((emp) => (
+                        <option key={emp.empId || emp.name} value={emp.displayName} className="bg-slate-800 text-white">
+                          {emp.displayName}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled className="bg-slate-800 text-slate-500">
+                        -- ไม่มีรายชื่อในระบบ --
+                      </option>
+                    )}
+                    <option value="__custom__" className="bg-slate-800 text-amber-300 font-semibold">
+                      + ระบุชื่อเอง (ไม่อยู่ในรายชื่อ)
+                    </option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
                 </div>
+
+                {isCustomSender && (
+                  <div className="relative mt-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="พิมพ์ชื่อและรหัสพนักงานผู้ส่ง..."
+                      value={customSenderName}
+                      onChange={(e) => setCustomSenderName(e.target.value)}
+                      className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                    />
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  </div>
+                )}
               </div>
 
               {/* หมายเลขตู้สินค้า */}
@@ -512,15 +580,46 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                ผู้รับงาน (แผนกพ่นสี)
+                ผู้รับงานเข้าแผนกพ่นสี (POWDER COATING) <span className="text-rose-400">*</span>
               </label>
-              <input
-                type="text"
-                value={receiverName}
-                onChange={(e) => setReceiverName(e.target.value)}
-                placeholder="ชื่อเจ้าหน้าที่พ่นสีผู้ตรวจรับ"
-                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
+              <div className="relative">
+                <select
+                  value={isCustomReceiver ? '__custom__' : receiverName}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomReceiver(true);
+                    } else {
+                      setIsCustomReceiver(false);
+                      setReceiverName(e.target.value);
+                    }
+                  }}
+                  className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                >
+                  {POWDER_COAT_RECEIVERS.map((emp) => (
+                    <option key={emp.empId || emp.name} value={emp.displayName} className="bg-slate-800 text-white">
+                      {emp.displayName}
+                    </option>
+                  ))}
+                  <option value="__custom__" className="bg-slate-800 text-amber-300 font-semibold">
+                    + ระบุชื่อเอง (ไม่อยู่ในรายชื่อ)
+                  </option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+              </div>
+
+              {isCustomReceiver && (
+                <div className="relative mt-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="พิมพ์ชื่อเจ้าหน้าที่พ่นสีผู้รับงาน..."
+                    value={customReceiverName}
+                    onChange={(e) => setCustomReceiverName(e.target.value)}
+                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                </div>
+              )}
             </div>
 
             <div>

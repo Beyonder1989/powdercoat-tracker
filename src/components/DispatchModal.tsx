@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { X, PackageCheck, User, Calendar, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, PackageCheck, User, CheckCircle2, ChevronDown, Building2 } from 'lucide-react';
 import { PowderCoatJob } from '../types';
+import { DEPARTMENTS } from '../data/masterData';
+import { PACKING_RECEIVERS, getEmployeesByDepartment } from '../data/employeeData';
 
 interface DispatchModalProps {
   job: PowderCoatJob;
@@ -13,21 +15,50 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
   onClose,
   onConfirmDispatch,
 }) => {
-  const [receiverName, setReceiverName] = useState<string>('');
+  const [targetDept, setTargetDept] = useState<string>('Packing (PK)');
+  
+  // Dynamic employees for the target department
+  const departmentEmployees = useMemo(() => {
+    const list = getEmployeesByDepartment(targetDept);
+    return list.length > 0 ? list : PACKING_RECEIVERS;
+  }, [targetDept]);
+
+  const [receiverName, setReceiverName] = useState<string>(
+    PACKING_RECEIVERS[0]?.displayName || ''
+  );
+  const [isCustomReceiver, setIsCustomReceiver] = useState<boolean>(false);
+  const [customReceiverName, setCustomReceiverName] = useState<string>('');
+  
   const [dispatchNotes, setDispatchNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleTargetDeptChange = (newDept: string) => {
+    setTargetDept(newDept);
+    const emps = getEmployeesByDepartment(newDept);
+    if (emps.length > 0) {
+      setReceiverName(emps[0].displayName);
+      setIsCustomReceiver(false);
+    } else {
+      setReceiverName('');
+      setIsCustomReceiver(true);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!receiverName.trim()) {
-      setError('กรุณาระบุชื่อเจ้าหน้าที่แผนกแพ็คกิ้งผู้รับงาน');
+    const effectiveReceiver = (isCustomReceiver ? customReceiverName : receiverName).trim();
+    if (!effectiveReceiver) {
+      setError('กรุณาเลือกหรือระบุชื่อเจ้าหน้าที่ผู้รับงาน');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await onConfirmDispatch(job.id, receiverName.trim(), dispatchNotes.trim());
+      const noteWithDept = dispatchNotes.trim() 
+        ? `[แผนกรับ: ${targetDept}] ${dispatchNotes.trim()}` 
+        : `[แผนกรับ: ${targetDept}]`;
+      await onConfirmDispatch(job.id, effectiveReceiver, noteWithDept);
       onClose();
     } catch (err: any) {
       setError(err.message || 'เกิดข้อผิดพลาดในการส่งมอบงาน');
@@ -43,7 +74,7 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
         <div className="bg-gradient-to-r from-purple-700 to-indigo-800 px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <PackageCheck className="w-5 h-5" />
-            <h3 className="text-lg font-bold">ส่งมอบงานต่อให้แผนกแพ็คกิ้ง</h3>
+            <h3 className="text-lg font-bold">ส่งมอบงานออกจากแผนกพ่นสี</h3>
           </div>
           <button
             onClick={onClose}
@@ -81,21 +112,76 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
             </div>
           </div>
 
+          {/* แผนกปลายทางที่รับงานออก */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              ชื่อผู้รับงาน (แผนกแพ็คกิ้ง Packing) <span className="text-rose-400">*</span>
+              แผนกผู้รับมอบงานต่อ <span className="text-rose-400">*</span>
             </label>
             <div className="relative">
-              <input
-                type="text"
-                required
-                placeholder="ระบุชื่อเจ้าหน้าที่แพ็คกิ้ง..."
-                value={receiverName}
-                onChange={(e) => setReceiverName(e.target.value)}
-                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-              />
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+              <select
+                value={targetDept}
+                onChange={(e) => handleTargetDeptChange(e.target.value)}
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm font-medium"
+              >
+                {DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept} className="bg-slate-800 text-white">
+                    {dept}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
             </div>
+          </div>
+
+          {/* ชื่อผู้รับงาน (ดึงตามแผนกปลายทางที่เลือก) */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+              ชื่อผู้รับงาน (แผนก {targetDept}) <span className="text-rose-400">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={isCustomReceiver ? '__custom__' : receiverName}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setIsCustomReceiver(true);
+                  } else {
+                    setIsCustomReceiver(false);
+                    setReceiverName(e.target.value);
+                  }
+                }}
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+              >
+                {departmentEmployees.length > 0 ? (
+                  departmentEmployees.map((emp) => (
+                    <option key={emp.empId || emp.name} value={emp.displayName} className="bg-slate-800 text-white">
+                      {emp.displayName}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled className="bg-slate-800 text-slate-500">
+                    -- ไม่มีรายชื่อในระบบ --
+                  </option>
+                )}
+                <option value="__custom__" className="bg-slate-800 text-amber-300 font-semibold">
+                  + ระบุชื่อเอง (ไม่อยู่ในรายชื่อ)
+                </option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+            </div>
+
+            {isCustomReceiver && (
+              <div className="relative mt-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="พิมพ์ชื่อและรหัสพนักงานผู้รับงาน..."
+                  value={customReceiverName}
+                  onChange={(e) => setCustomReceiverName(e.target.value)}
+                  className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                />
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              </div>
+            )}
           </div>
 
           <div>
