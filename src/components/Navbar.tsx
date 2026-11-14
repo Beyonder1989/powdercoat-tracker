@@ -32,13 +32,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-14 sm:h-20 gap-1.5 sm:gap-2">
           {/* Logo & Brand */}
           <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer shrink-0" onClick={() => setActiveTab('tracker')}>
-            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-600 to-rose-600 flex items-center justify-center shadow-lg shadow-orange-500/20 shrink-0">
-              <Paintbrush className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+            <div className="h-9 sm:h-12 flex items-center justify-center shrink-0">
+              <img 
+                src="/hamer-logo.png" 
+                alt="HAMER 4X4" 
+                className="h-8 sm:h-11 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform" 
+              />
             </div>
             <div className="leading-tight">
-              <span className="text-sm sm:text-xl font-bold tracking-tight text-white block">
-                <span className="sm:hidden">PC <span className="text-orange-400">TRACKER</span></span>
-                <span className="hidden sm:inline">{t.brandTitle} <span className="text-orange-400">{t.brandTitleHighlight}</span></span>
+              <span className="text-sm sm:text-xl font-black tracking-tight text-white block">
+                <span className="sm:hidden text-amber-400 font-extrabold tracking-wider">PC TRACKER</span>
+                <span className="hidden sm:inline font-mono">POWDER COAT <span className="text-amber-400">TRACKER</span></span>
               </span>
               <p className="text-[11px] sm:text-xs text-slate-400 hidden lg:block">
                 {t.brandSubtitle}

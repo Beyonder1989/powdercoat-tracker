@@ -317,10 +317,13 @@ export function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        {lang === 'my'
-          ? 'Powder Coat Tracker • HAMER 4X4 ဘမ်ဘာ ဆေးမှုတ်စနစ်'
-          : 'ระบบรับเข้าและติดตามชิ้นงานพ่นสี (Powder Coat Tracker) • HAMER 4X4'}
+      <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500 flex flex-col items-center justify-center space-y-2.5">
+        <img src="/hamer-logo.png" alt="HAMER 4X4" className="h-7 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
+        <p>
+          {lang === 'my'
+            ? 'Powder Coat Tracker • HAMER 4X4 ဘမ်ဘာ ဆေးမှုတ်စနစ်'
+            : 'ระบบรับเข้าและติดตามชิ้นงานพ่นสี (Powder Coat Tracker) • HAMER 4X4'}
+        </p>
       </footer>
 
       {/* Security PIN Keypad Modal */}
