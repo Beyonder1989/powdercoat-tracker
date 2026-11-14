@@ -252,10 +252,10 @@ export const translations: Record<Language, Translations> = {
 
     // Start Coating (Hanger & Process) Modal
     startCoatingModalTitle: 'บันทึกขึ้นไลน์พ่นสี (แขวนแฮงค์เกอร์)',
-    startCoatingModalSubtitle: 'ระบุหมายเลขแฮงค์เกอร์ และเลือกประเภทกระบวนการพ่นสี',
-    labelHangerNo: 'หมายเลขแฮงค์เกอร์ (Hanger No.) *',
-    placeholderHangerNo: 'เช่น H-01, H-12, HG-05, 15',
-    hangerRequiredAlert: 'กรุณากรอกหมายเลขแฮงค์เกอร์ก่อนเริ่มงาน',
+    startCoatingModalSubtitle: 'เลือกหมายเลขแฮงค์เกอร์ และเลือกประเภทกระบวนการพ่นสี',
+    labelHangerNo: 'เลือกหมายเลขแฮงค์เกอร์ (1 - 99) *',
+    placeholderHangerNo: '-- แตะเพื่อเลือกหมายเลขแฮงค์เกอร์ (1 - 99) --',
+    hangerRequiredAlert: 'กรุณาเลือกหมายเลขแฮงค์เกอร์ก่อนเริ่มงาน',
     labelCoatingType: 'ประเภทกระบวนการ (Coating Process) *',
     coatingTypeEdpOnly: 'EDP อย่างเดียว (ชุบกันสนิม)',
     coatingTypeEdpOnlyDesc: 'ชุบล้างผิวและลงบ่อ EDP ดำด้านกันสนิมเท่านั้น (ไม่เข้าห้องพ่นสีฝุ่น)',
@@ -393,10 +393,10 @@ export const translations: Record<Language, Translations> = {
 
     // Start Coating (Hanger & Process) Modal
     startCoatingModalTitle: 'လိုင်းတင်ခြင်းနှင့် ဟန်းဂါးချိတ်ဆွဲခြင်း',
-    startCoatingModalSubtitle: 'ဟန်းဂါးနံပါတ်ထည့်သွင်းပြီး ဆေးမှုတ်လုပ်ငန်းစဉ် ရွေးချယ်ပါ',
-    labelHangerNo: 'ဟန်းဂါး / ချိတ်နံပါတ် (Hanger No.) *',
-    placeholderHangerNo: 'ဥပမာ H-01, H-12, HG-05, 15',
-    hangerRequiredAlert: 'ကျေးဇူးပြု၍ ဟန်းဂါးနံပါတ် အရင်ထည့်သွင်းပါ',
+    startCoatingModalSubtitle: 'ဟန်းဂါးနံပါတ် ရွေးချယ်ပြီး ဆေးမှုတ်လုပ်ငန်းစဉ် ရွေးပါ',
+    labelHangerNo: 'ဟန်းဂါးနံပါတ် ရွေးပါ (၁ - ၉၉) *',
+    placeholderHangerNo: '-- ဟန်းဂါးနံပါတ် ရွေးချယ်ပါ (၁ - ၉၉) --',
+    hangerRequiredAlert: 'ကျေးဇူးပြု၍ ဟန်းဂါးနံပါတ် ရွေးချယ်ပါ',
     labelCoatingType: 'ဆေးမှုတ်ခြင်း အမျိုးအစား (Process Type) *',
     coatingTypeEdpOnly: 'EDP သီးသန့် (သံချေးကာကွယ်ရည်)',
     coatingTypeEdpOnlyDesc: 'EDP သံချေးကာကွယ်ရည်ကန်သာ စိမ်ပါမည် (အမှုန့်ဆေးမမှုတ်ပါ)',

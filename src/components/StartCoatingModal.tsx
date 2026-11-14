@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Droplets, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Check, Droplets, Sparkles, AlertCircle, ChevronDown, Hash } from 'lucide-react';
 import { PowderCoatJob, CoatingType } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -16,22 +16,51 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
   onClose,
   onConfirm,
 }) => {
-  const { t } = useLanguage();
-  const [hangerNo, setHangerNo] = useState<string>(job.hanger_no || '');
+  const { lang, t } = useLanguage();
+  
+  // Extract number from existing job.hanger_no if any (1 - 99)
+  const initialHangerNum = React.useMemo(() => {
+    if (!job.hanger_no) return '';
+    const parsed = parseInt(job.hanger_no.replace(/\D/g, ''), 10);
+    return !isNaN(parsed) && parsed >= 1 && parsed <= 99 ? parsed : '';
+  }, [job.hanger_no]);
+
+  const [hangerNo, setHangerNo] = useState<number | ''>(initialHangerNum);
   const [coatingType, setCoatingType] = useState<CoatingType>(job.coating_type || 'EDP_AND_POWDER');
   const [error, setError] = useState<string | null>(null);
+
+  // Tab range for quick number buttons: 1-20, 21-40, 41-60, 61-80, 81-99
+  const [activeRange, setActiveRange] = useState<number>(() => {
+    if (typeof initialHangerNum === 'number') {
+      return Math.floor((initialHangerNum - 1) / 20);
+    }
+    return 0; // Default 1 - 20
+  });
+
+  const rangeTabs = [
+    { label: '1 - 20', start: 1, end: 20 },
+    { label: '21 - 40', start: 21, end: 40 },
+    { label: '41 - 60', start: 41, end: 60 },
+    { label: '61 - 80', start: 61, end: 80 },
+    { label: '81 - 99', start: 81, end: 99 },
+  ];
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hangerNo.trim()) {
+    if (!hangerNo || hangerNo < 1 || hangerNo > 99) {
       setError(t.hangerRequiredAlert);
       return;
     }
     setError(null);
-    onConfirm(job.id, hangerNo.trim().toUpperCase(), coatingType);
+    onConfirm(job.id, String(hangerNo), coatingType);
     onClose();
+  };
+
+  const handleSelectNumber = (num: number) => {
+    setHangerNo(num);
+    if (error) setError(null);
   };
 
   return (
@@ -60,9 +89,9 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-5 max-h-[85vh] overflow-y-auto">
           {/* Job Summary Banner */}
-          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3">
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">
                 {t.boxNotice}: <span className="font-mono text-white text-sm">{job.container_no}</span>
@@ -82,50 +111,139 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
             </div>
           </div>
 
-          {/* Hanger Number Input */}
-          <div className="space-y-1.5">
-            <label className="block text-xs sm:text-sm font-bold text-slate-200 flex items-center justify-between">
-              <span className="flex items-center space-x-1.5">
+          {/* Hanger Number Selector (1 - 99 strictly, NO manual typing) */}
+          <div className="space-y-3 bg-slate-950/60 border border-slate-800 p-3.5 rounded-xl">
+            <div className="flex items-center justify-between">
+              <label className="text-xs sm:text-sm font-bold text-slate-200 flex items-center space-x-1.5">
                 <span>🪝</span>
                 <span>{t.labelHangerNo}</span>
+              </label>
+              <span className="text-[10px] sm:text-xs text-amber-400 font-medium">
+                (ล็อกเลข 1 - 99 ป้องกันพิมพ์ผิด)
               </span>
-              <span className="text-[11px] text-amber-400 font-normal">
-                (จำเป็น / မဖြစ်မနေ)
-              </span>
-            </label>
+            </div>
+
+            {/* Selected Number Highlight Banner with Quick Stepper */}
+            <div className={`p-3 rounded-xl border-2 flex items-center justify-between transition-all ${
+              hangerNo 
+                ? 'bg-amber-950/40 border-amber-500/80 shadow-md shadow-amber-950/30' 
+                : 'bg-slate-900/90 border-slate-700'
+            }`}>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl leading-none">🪝</span>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                    {lang === 'my' ? 'ရွေးချယ်ထားသော ချိတ်နံပါတ်' : 'หมายเลขแฮงค์เกอร์ที่เลือก'}
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black font-mono text-amber-300 tracking-wider block">
+                    {hangerNo ? `แฮงค์เกอร์ #${hangerNo}` : (
+                      <span className="text-slate-500 text-sm font-normal">-- ยังไม่ได้เลือก --</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Stepper Buttons (-1 / +1) */}
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  disabled={!hangerNo || hangerNo <= 1}
+                  onClick={() => {
+                    const current = typeof hangerNo === 'number' ? hangerNo : 1;
+                    if (current > 1) handleSelectNumber(current - 1);
+                  }}
+                  className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-white font-bold text-sm flex items-center justify-center border border-slate-700 active:scale-95 transition-all"
+                  title="ลด 1"
+                >
+                  -1
+                </button>
+                <button
+                  type="button"
+                  disabled={hangerNo === 99}
+                  onClick={() => {
+                    const current = typeof hangerNo === 'number' ? hangerNo : 0;
+                    if (current < 99) handleSelectNumber(current + 1);
+                  }}
+                  className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-white font-bold text-sm flex items-center justify-center border border-slate-700 active:scale-95 transition-all"
+                  title="เพิ่ม 1"
+                >
+                  +1
+                </button>
+              </div>
+            </div>
+
+            {/* Dropdown Select (Native Wheel for Mobile) */}
             <div className="relative">
-              <input
-                type="text"
-                autoFocus
+              <select
                 value={hangerNo}
                 onChange={(e) => {
-                  setHangerNo(e.target.value);
-                  if (error) setError(null);
+                  const val = e.target.value ? Number(e.target.value) : '';
+                  if (typeof val === 'number') {
+                    handleSelectNumber(val);
+                    // auto jump decade tab
+                    setActiveRange(Math.floor((val - 1) / 20));
+                  }
                 }}
-                placeholder={t.placeholderHangerNo}
-                className={`w-full bg-slate-950 border-2 rounded-xl px-4 py-3 text-lg font-mono font-bold tracking-wider text-white placeholder-slate-600 focus:outline-none transition-all uppercase ${
+                className={`w-full appearance-none bg-slate-900 border-2 rounded-xl px-4 py-3 text-sm sm:text-base font-bold text-white focus:outline-none transition-all cursor-pointer ${
                   error
                     ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/50'
                     : 'border-slate-700 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30'
                 }`}
-              />
+              >
+                <option value="" disabled className="text-slate-500">
+                  {t.placeholderHangerNo}
+                </option>
+                {Array.from({ length: 99 }, (_, i) => i + 1).map((num) => (
+                  <option key={num} value={num} className="bg-slate-900 text-white py-1">
+                    {`🪝 แฮงค์เกอร์หมายเลข ${num} (ချိတ် ${num})`}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
+                <ChevronDown className="w-5 h-5" />
+              </div>
             </div>
 
-            {/* Quick Hanger Pre-set buttons for speed on mobile */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[10px] text-slate-400 mr-1">ปุ่มช่วยเติม:</span>
-              {['H-', 'HG-', 'LINE-1', 'LINE-2'].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => {
-                    setHangerNo((prev) => (prev ? `${prev}${preset}` : preset));
-                  }}
-                  className="px-2 py-0.5 text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition-colors"
-                >
-                  +{preset}
-                </button>
-              ))}
+            {/* Quick Touch Number Pad Grid (1 - 99 by Ranges) */}
+            <div className="space-y-2 pt-1">
+              {/* Range Tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                {rangeTabs.map((tab, idx) => (
+                  <button
+                    key={tab.label}
+                    type="button"
+                    onClick={() => setActiveRange(idx)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold whitespace-nowrap transition-all border ${
+                      activeRange === idx
+                        ? 'bg-amber-600 text-white border-amber-500 shadow-md'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Number Buttons in Active Range */}
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 p-2 bg-slate-900/90 rounded-xl border border-slate-800">
+                {Array.from(
+                  { length: rangeTabs[activeRange].end - rangeTabs[activeRange].start + 1 },
+                  (_, i) => rangeTabs[activeRange].start + i
+                ).map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => handleSelectNumber(num)}
+                    className={`py-2 rounded-lg text-xs sm:text-sm font-mono font-bold transition-all border active:scale-95 ${
+                      hangerNo === num
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/40 font-black scale-105'
+                        : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {error && (
