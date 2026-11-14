@@ -108,6 +108,22 @@ export interface Translations {
   dispatchNotes: string;
   dispatchConfirmBtn: string;
 
+  // Start Coating (Hanger & Process) Modal
+  startCoatingModalTitle: string;
+  startCoatingModalSubtitle: string;
+  labelHangerNo: string;
+  placeholderHangerNo: string;
+  hangerRequiredAlert: string;
+  labelCoatingType: string;
+  coatingTypeEdpOnly: string;
+  coatingTypeEdpOnlyDesc: string;
+  coatingTypeEdpAndPowder: string;
+  coatingTypeEdpAndPowderDesc: string;
+  btnConfirmStartCoating: string;
+  badgeHanger: string;
+  badgeEdpOnly: string;
+  badgeEdpAndPowder: string;
+
   // Role & PIN Auth
   modeViewer: string;
   modeOperator: string;
@@ -234,6 +250,22 @@ export const translations: Record<Language, Translations> = {
     dispatchNotes: 'หมายเหตุการส่งมอบ (ถ้ามี)',
     dispatchConfirmBtn: 'ยืนยันการส่งมอบงาน',
 
+    // Start Coating (Hanger & Process) Modal
+    startCoatingModalTitle: 'บันทึกขึ้นไลน์พ่นสี (แขวนแฮงค์เกอร์)',
+    startCoatingModalSubtitle: 'ระบุหมายเลขแฮงค์เกอร์ และเลือกประเภทกระบวนการพ่นสี',
+    labelHangerNo: 'หมายเลขแฮงค์เกอร์ (Hanger No.) *',
+    placeholderHangerNo: 'เช่น H-01, H-12, HG-05, 15',
+    hangerRequiredAlert: 'กรุณากรอกหมายเลขแฮงค์เกอร์ก่อนเริ่มงาน',
+    labelCoatingType: 'ประเภทกระบวนการ (Coating Process) *',
+    coatingTypeEdpOnly: 'EDP อย่างเดียว (ชุบกันสนิม)',
+    coatingTypeEdpOnlyDesc: 'ชุบล้างผิวและลงบ่อ EDP ดำด้านกันสนิมเท่านั้น (ไม่เข้าห้องพ่นสีฝุ่น)',
+    coatingTypeEdpAndPowder: 'EDP + พ่นสีฝุ่น (ครบระบบ)',
+    coatingTypeEdpAndPowderDesc: 'ชุบ EDP รองพื้นกันสนิม + เข้าห้องพ่นสีฝุ่น Powder Coat อบความร้อน',
+    btnConfirmStartCoating: 'ยืนยันเริ่มขึ้นไลน์พ่นสี',
+    badgeHanger: 'แฮงค์เกอร์',
+    badgeEdpOnly: '💧 EDP อย่างเดียว',
+    badgeEdpAndPowder: '⚡ EDP + พ่นสีฝุ่น',
+
     // Role & PIN Auth
     modeViewer: 'โหมดดูงาน (Viewer)',
     modeOperator: 'ช่างพ่นสี (ทำงานได้)',
@@ -358,6 +390,22 @@ export const translations: Record<Language, Translations> = {
     dispatchReceiverStaff: 'လက်ခံမည့် ဝန်ထမ်း *',
     dispatchNotes: 'လွှဲပြောင်းမှု မှတ်ချက် (ရှိလျှင်)',
     dispatchConfirmBtn: 'လွှဲပြောင်းမှု အတည်ပြုမည်',
+
+    // Start Coating (Hanger & Process) Modal
+    startCoatingModalTitle: 'လိုင်းတင်ခြင်းနှင့် ဟန်းဂါးချိတ်ဆွဲခြင်း',
+    startCoatingModalSubtitle: 'ဟန်းဂါးနံပါတ်ထည့်သွင်းပြီး ဆေးမှုတ်လုပ်ငန်းစဉ် ရွေးချယ်ပါ',
+    labelHangerNo: 'ဟန်းဂါး / ချိတ်နံပါတ် (Hanger No.) *',
+    placeholderHangerNo: 'ဥပမာ H-01, H-12, HG-05, 15',
+    hangerRequiredAlert: 'ကျေးဇူးပြု၍ ဟန်းဂါးနံပါတ် အရင်ထည့်သွင်းပါ',
+    labelCoatingType: 'ဆေးမှုတ်ခြင်း အမျိုးအစား (Process Type) *',
+    coatingTypeEdpOnly: 'EDP သီးသန့် (သံချေးကာကွယ်ရည်)',
+    coatingTypeEdpOnlyDesc: 'EDP သံချေးကာကွယ်ရည်ကန်သာ စိမ်ပါမည် (အမှုန့်ဆေးမမှုတ်ပါ)',
+    coatingTypeEdpAndPowder: 'EDP + အမှုန့်ဆေးမှုတ် (စနစ်အပြည့်)',
+    coatingTypeEdpAndPowderDesc: 'EDP သံချေးကာကွယ်ရည်စိမ်ပြီးနောက် Powder Coat အမှုန့်ဆေးမှုတ် မီးဖုတ်ပါမည်',
+    btnConfirmStartCoating: 'လိုင်းတင်ဆေးစတင်မည် အတည်ပြုပါ',
+    badgeHanger: 'ဟန်းဂါး',
+    badgeEdpOnly: '💧 EDP သီးသန့်',
+    badgeEdpAndPowder: '⚡ EDP + ဆေးမှုတ်',
 
     // Role & PIN Auth
     modeViewer: 'ကြည့်ရှုသူ မုဒ် (Viewer)',

@@ -5,8 +5,9 @@ import { JobTracker } from './components/JobTracker';
 import { JobDetailModal } from './components/JobDetailModal';
 import { DispatchModal } from './components/DispatchModal';
 import { PinModal } from './components/PinModal';
+import { StartCoatingModal } from './components/StartCoatingModal';
 import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
-import { PowderCoatJob, JobStatus, JobPriority } from './types';
+import { PowderCoatJob, JobStatus, JobPriority, CoatingType } from './types';
 import { useLanguage } from './context/LanguageContext';
 import { useRole } from './context/RoleContext';
 import { Lock } from 'lucide-react';
@@ -42,6 +43,8 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
     delivery_slip_image_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
     part_image_url: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80',
     status: 'IN_PROGRESS',
+    hanger_no: 'H-03',
+    coating_type: 'EDP_AND_POWDER',
     received_at: new Date(Date.now() - 3600000 * 4).toISOString(),
     coating_started_at: new Date(Date.now() - 3600000 * 1).toISOString(),
     receiver_name: 'ช่างพ่นสี 02',
@@ -60,6 +63,8 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
     delivery_slip_image_url: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80',
     part_image_url: 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80',
     status: 'COMPLETED',
+    hanger_no: 'HG-12',
+    coating_type: 'EDP_ONLY',
     received_at: new Date(Date.now() - 3600000 * 8).toISOString(),
     coating_started_at: new Date(Date.now() - 3600000 * 6).toISOString(),
     coating_finished_at: new Date(Date.now() - 3600000 * 2).toISOString(),
@@ -77,6 +82,7 @@ export function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedJob, setSelectedJob] = useState<PowderCoatJob | null>(null);
   const [dispatchingJob, setDispatchingJob] = useState<PowderCoatJob | null>(null);
+  const [startCoatingJob, setStartCoatingJob] = useState<PowderCoatJob | null>(null);
 
   // Load jobs on start
   const loadJobs = async () => {
@@ -111,9 +117,13 @@ export function App() {
   }, [jobs]);
 
   // Handle status update
-  const handleUpdateStatus = async (jobId: string, newStatus: JobStatus) => {
+  const handleUpdateStatus = async (
+    jobId: string,
+    newStatus: JobStatus,
+    extraData?: Partial<PowderCoatJob>
+  ) => {
     try {
-      const updated = await updateJobStatus(jobId, newStatus);
+      const updated = await updateJobStatus(jobId, newStatus, extraData);
       if (updated) {
         setJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
         if (selectedJob && selectedJob.id === jobId) {
@@ -123,6 +133,18 @@ export function App() {
     } catch (e) {
       console.error('Failed to update status', e);
     }
+  };
+
+  // Handle start coating confirmation (Hanger No. & Coating Process)
+  const handleConfirmStartCoating = async (
+    jobId: string,
+    hangerNo: string,
+    coatingType: CoatingType
+  ) => {
+    await handleUpdateStatus(jobId, 'IN_PROGRESS', {
+      hanger_no: hangerNo,
+      coating_type: coatingType,
+    });
   };
 
   // Handle dispatch confirmation to Packing
@@ -218,6 +240,7 @@ export function App() {
             onUpdateStatus={handleUpdateStatus}
             onUpdatePriority={handleUpdatePriority}
             onOpenDispatch={setDispatchingJob}
+            onOpenStartCoating={setStartCoatingJob}
             onDeleteJob={handleDeleteJob}
             initialFilter="ALL"
           />
@@ -252,6 +275,7 @@ export function App() {
               onUpdateStatus={handleUpdateStatus}
               onUpdatePriority={handleUpdatePriority}
               onOpenDispatch={setDispatchingJob}
+              onOpenStartCoating={setStartCoatingJob}
               onDeleteJob={handleDeleteJob}
               initialFilter="ALL"
             />
@@ -270,6 +294,20 @@ export function App() {
             setSelectedJob(null);
             setDispatchingJob(job);
           }}
+          onOpenStartCoating={(job) => {
+            setSelectedJob(null);
+            setStartCoatingJob(job);
+          }}
+        />
+      )}
+
+      {/* Modal: Start Coating (Hanger No. & Coating Process) */}
+      {startCoatingJob && (
+        <StartCoatingModal
+          job={startCoatingJob}
+          isOpen={Boolean(startCoatingJob)}
+          onClose={() => setStartCoatingJob(null)}
+          onConfirm={handleConfirmStartCoating}
         />
       )}
 

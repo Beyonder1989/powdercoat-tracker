@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert } from 'lucide-react';
+import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert, Droplets, Sparkles } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
@@ -9,9 +9,10 @@ interface JobTrackerProps {
   isLoading: boolean;
   onRefresh: () => void;
   onSelectJob: (job: PowderCoatJob) => void;
-  onUpdateStatus: (jobId: string, status: JobStatus) => void;
+  onUpdateStatus: (jobId: string, status: JobStatus, extraData?: Partial<PowderCoatJob>) => void;
   onUpdatePriority?: (jobId: string, priority: JobPriority) => void;
   onOpenDispatch: (job: PowderCoatJob) => void;
+  onOpenStartCoating?: (job: PowderCoatJob) => void;
   onDeleteJob: (jobId: string) => void;
   initialFilter?: JobStatus | 'ALL' | 'URGENT_ONLY';
 }
@@ -24,6 +25,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   onUpdateStatus,
   onUpdatePriority,
   onOpenDispatch,
+  onOpenStartCoating,
   onDeleteJob,
   initialFilter = 'ALL',
 }) => {
@@ -365,6 +367,54 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     </div>
                   </div>
 
+                  {/* 🪝 HANGER & COATING PROCESS REAL-TIME STATUS (ขึ้นไลน์พ่นแล้ว จะแสดงหมายเลขแฮงค์เกอร์และประเภทงาน) */}
+                  {(job.hanger_no || job.coating_type) && (
+                    <div className="bg-slate-950/90 rounded-xl p-2.5 border border-amber-500/40 flex items-center justify-between gap-2 shadow-inner">
+                      {job.hanger_no ? (
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <span className="text-lg leading-none">🪝</span>
+                          <div className="min-w-0">
+                            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">
+                              {t.badgeHanger}
+                            </span>
+                            <span className="font-mono text-sm font-black text-white tracking-wider truncate block">
+                              #{job.hanger_no}
+                            </span>
+                          </div>
+                        </div>
+                      ) : <div />}
+
+                      {job.coating_type && (
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold border ${
+                              job.coating_type === 'EDP_ONLY'
+                                ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500/60 shadow-sm shadow-cyan-950'
+                                : 'bg-purple-950/90 text-purple-300 border-purple-500/60 shadow-sm shadow-purple-950'
+                            }`}
+                          >
+                            {job.coating_type === 'EDP_ONLY' ? t.badgeEdpOnly : t.badgeEdpAndPowder}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* กำลังพ่นสีอยู่ (Real-time In Progress Active Badge) */}
+                  {job.status === 'IN_PROGRESS' && (
+                    <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-semibold">
+                      <span className="flex items-center space-x-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                        <span>{lang === 'my' ? 'လိုင်းပေါ်တွင် ဆေးမှုတ်နေဆဲ' : 'กำลังขึ้นไลน์พ่นสี (Real-time)'}</span>
+                      </span>
+                      {job.coating_started_at && (
+                        <span className="text-[10px] font-mono text-amber-400/80">
+                          ⏱️ {new Date(job.coating_started_at).toLocaleTimeString(lang === 'my' ? 'en-GB' : 'th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Model & Part Title */}
                   <div>
                     <h3 className="text-lg font-bold text-white font-mono group-hover:text-orange-400 transition-colors">
@@ -495,10 +545,17 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                       <div className="flex items-center space-x-1.5">
                         {job.status === 'RECEIVED' && (
                           <button
-                            onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
-                            className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors"
+                            onClick={() => {
+                              if (onOpenStartCoating) {
+                                onOpenStartCoating(job);
+                              } else {
+                                onUpdateStatus(job.id, 'IN_PROGRESS');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
                           >
-                            {t.btnStartCoating}
+                            <span>🪝</span>
+                            <span>{t.btnStartCoating}</span>
                           </button>
                         )}
 
@@ -633,6 +690,24 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           <span className={`w-1.5 h-1.5 rounded-full mr-1 ${statusInfo.dot}`}></span>
                           {statusInfo.label}
                         </span>
+                        {job.hanger_no && (
+                          <div className="mt-1 flex items-center space-x-1.5 text-[11px]">
+                            <span className="font-mono text-amber-300 font-bold bg-slate-800 px-1.5 py-0.5 rounded border border-amber-500/30">
+                              🪝 #{job.hanger_no}
+                            </span>
+                            {job.coating_type && (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                  job.coating_type === 'EDP_ONLY'
+                                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                                    : 'bg-purple-950 text-purple-300 border border-purple-800'
+                                }`}
+                              >
+                                {job.coating_type === 'EDP_ONLY' ? 'EDP ONLY' : 'EDP+POWDER'}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end space-x-2">
@@ -648,10 +723,17 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                             <>
                               {job.status === 'RECEIVED' && (
                                 <button
-                                  onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
-                                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold"
+                                  onClick={() => {
+                                    if (onOpenStartCoating) {
+                                      onOpenStartCoating(job);
+                                    } else {
+                                      onUpdateStatus(job.id, 'IN_PROGRESS');
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold flex items-center space-x-1"
                                 >
-                                  {t.btnStartCoating}
+                                  <span>🪝</span>
+                                  <span>{t.btnStartCoating}</span>
                                 </button>
                               )}
                               {job.status === 'IN_PROGRESS' && (

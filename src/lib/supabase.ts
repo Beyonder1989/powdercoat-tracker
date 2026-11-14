@@ -246,6 +246,31 @@ export const updateJobStatus = async (
     if (!error && data) {
       return data as PowderCoatJob;
     }
+
+    if (error) {
+      console.warn('Supabase update failed:', error.message);
+      // หากเกิดปัญหาเรื่องคอลัมน์ใหม่ (hanger_no หรือ coating_type) ยังไม่ได้รัน SQL ใน Supabase
+      if (error.message?.includes('hanger_no') || error.message?.includes('coating_type')) {
+        const { hanger_no, coating_type, ...fallbackPayload } = updatePayload;
+        const { data: fbData, error: fbError } = await supabase
+          .from('powdercoat_jobs')
+          .update(fallbackPayload)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (!fbError && fbData) {
+          const merged = { ...(fbData as PowderCoatJob), ...updatePayload };
+          const localJobs = getLocalJobs();
+          const idx = localJobs.findIndex((j) => j.id === id);
+          if (idx !== -1) {
+            localJobs[idx] = merged;
+            saveLocalJobs(localJobs);
+          }
+          return merged;
+        }
+      }
+    }
   }
 
   // Update local

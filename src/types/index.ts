@@ -9,6 +9,10 @@ export type JobPriority =
   | 'HIGH'     // งานด่วน / အရေးကြီး
   | 'NORMAL';  // ปกติ / ပုံမှန်
 
+export type CoatingType = 
+  | 'EDP_ONLY'        // ชุบ EDP อย่างเดียว
+  | 'EDP_AND_POWDER'; // ชุบ EDP + พ่นสีฝุ่น
+
 export interface PowderCoatJob {
   id: string;
   tracking_code: string;          // e.g. PC-261113-0001
@@ -22,6 +26,8 @@ export interface PowderCoatJob {
   part_image_url: string;         // URL รูปถ่ายตัวชิ้นงาน
   status: JobStatus;
   priority?: JobPriority;         // ความเร่งด่วน (URGENT / HIGH / NORMAL)
+  hanger_no?: string;             // หมายเลขแฮงค์เกอร์ (Hanger No.)
+  coating_type?: CoatingType;     // ประเภทงาน: EDP_ONLY หรือ EDP_AND_POWDER
   received_at: string;            // วันที่และเวลารับเข้า (ISO string)
   receiver_name: string;          // เจ้าหน้าที่แผนกพ่นสีผู้รับงาน
   coating_started_at?: string;    // วันที่และเวลาเริ่มพ่นสี

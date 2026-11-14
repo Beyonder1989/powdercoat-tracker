@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert } from 'lucide-react';
+import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert, Droplets, Sparkles } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
@@ -7,9 +7,10 @@ import { useRole } from '../context/RoleContext';
 interface JobDetailModalProps {
   job: PowderCoatJob;
   onClose: () => void;
-  onUpdateStatus: (jobId: string, status: JobStatus) => void;
+  onUpdateStatus: (jobId: string, status: JobStatus, extraData?: Partial<PowderCoatJob>) => void;
   onUpdatePriority?: (jobId: string, priority: JobPriority) => void;
   onOpenDispatch: (job: PowderCoatJob) => void;
+  onOpenStartCoating?: (job: PowderCoatJob) => void;
 }
 
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
@@ -18,6 +19,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onUpdateStatus,
   onUpdatePriority,
   onOpenDispatch,
+  onOpenStartCoating,
 }) => {
   const { lang, t } = useLanguage();
   const { isOperator } = useRole();
@@ -186,6 +188,47 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </div>
           </div>
 
+          {/* Real-time Coating & Hanger Status (Show when assigned) */}
+          {(job.hanger_no || job.coating_type) && (
+            <div className="bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-900 border border-amber-500/40 rounded-xl p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl p-2.5 bg-amber-500/20 text-amber-300 rounded-xl border border-amber-500/30 shadow-inner">
+                  🪝
+                </span>
+                <div>
+                  <span className="text-[11px] text-amber-400/90 font-bold uppercase tracking-wider block">
+                    {t.badgeHanger} (HANGER NO.)
+                  </span>
+                  <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-wider">
+                    {job.hanger_no ? `#${job.hanger_no}` : '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3 bg-slate-950/80 px-4 py-2.5 rounded-xl border border-slate-800 w-full sm:w-auto justify-between sm:justify-start">
+                <div className="p-2 rounded-lg bg-slate-800/80">
+                  {job.coating_type === 'EDP_ONLY' ? (
+                    <Droplets className="w-5 h-5 text-cyan-400" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 text-purple-400" />
+                  )}
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                    {t.labelCoatingType}
+                  </span>
+                  <span
+                    className={`text-xs sm:text-sm font-extrabold ${
+                      job.coating_type === 'EDP_ONLY' ? 'text-cyan-300' : 'text-purple-300'
+                    }`}
+                  >
+                    {job.coating_type === 'EDP_ONLY' ? t.coatingTypeEdpOnly : t.coatingTypeEdpAndPowder}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Timeline & Audit trail */}
           <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm">
             <h4 className="font-semibold text-slate-200 mb-3 flex items-center space-x-1.5">
@@ -210,7 +253,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     ? new Date(job.coating_started_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')
                     : '-'}
                 </span>
-                <span className="text-xs text-slate-400">{t.labelReceivedBy}: {job.receiver_name}</span>
+                <span className="text-xs text-slate-400 block">
+                  {t.labelReceivedBy}: {job.receiver_name}
+                </span>
+                {job.hanger_no && (
+                  <span className="text-[11px] font-mono font-bold text-amber-300 block mt-0.5">
+                    🪝 #{job.hanger_no}
+                  </span>
+                )}
               </div>
 
               <div className="border-l-2 border-emerald-500 pl-3">
@@ -328,11 +378,16 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 {job.status === 'RECEIVED' && (
                   <button
                     onClick={() => {
-                      onUpdateStatus(job.id, 'IN_PROGRESS');
+                      if (onOpenStartCoating) {
+                        onOpenStartCoating(job);
+                      } else {
+                        onUpdateStatus(job.id, 'IN_PROGRESS');
+                      }
                       onClose();
                     }}
                     className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1.5"
                   >
+                    <span>🪝</span>
                     <span>{t.btnStartCoating}</span>
                   </button>
                 )}
