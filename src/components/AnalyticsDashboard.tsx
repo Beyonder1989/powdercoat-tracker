@@ -12,6 +12,7 @@ import {
   CheckCircle2, 
   Droplets, 
   Sparkles, 
+  Paintbrush,
   Flame, 
   ArrowUpRight, 
   ArrowDownRight,
@@ -141,9 +142,11 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     // 7. Coating Process Breakdown
     let edpOnlyCount = 0;
     let edpAndPowderCount = 0;
+    let powderOnlyCount = 0;
     filteredJobs.forEach((j) => {
       if (j.coating_type === 'EDP_ONLY') edpOnlyCount += j.quantity || 1;
       else if (j.coating_type === 'EDP_AND_POWDER') edpAndPowderCount += j.quantity || 1;
+      else if (j.coating_type === 'POWDER_ONLY') powderOnlyCount += j.quantity || 1;
     });
 
     // 8. Department breakdowns
@@ -176,6 +179,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       wipCompletedParts,
       edpOnlyCount,
       edpAndPowderCount,
+      powderOnlyCount,
       senderMap,
       targetMap,
     };
@@ -222,7 +226,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         `"${j.container_no || ''}"`,
         j.quantity || 1,
         `"${j.hanger_no || '-'}"`,
-        `"${j.coating_type === 'EDP_ONLY' ? 'EDP ONLY' : j.coating_type === 'EDP_AND_POWDER' ? 'EDP + POWDER' : '-'}"`,
+        `"${j.coating_type === 'EDP_ONLY' ? 'EDP ONLY' : j.coating_type === 'POWDER_ONLY' ? 'POWDER ONLY' : j.coating_type === 'EDP_AND_POWDER' ? 'EDP + POWDER' : '-'}"`,
         `"${j.sender_department || ''}"`,
         `"${j.sender_name || ''}"`,
         `"${j.received_at ? new Date(j.received_at).toLocaleString('th-TH') : ''}"`,
@@ -493,8 +497,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   className="bg-cyan-500 h-2.5 rounded-full transition-all duration-500"
                   style={{
                     width: `${
-                      metrics.edpOnlyCount + metrics.edpAndPowderCount > 0
-                        ? (metrics.edpOnlyCount / (metrics.edpOnlyCount + metrics.edpAndPowderCount)) * 100
+                      metrics.edpOnlyCount + metrics.edpAndPowderCount + metrics.powderOnlyCount > 0
+                        ? (metrics.edpOnlyCount / (metrics.edpOnlyCount + metrics.edpAndPowderCount + metrics.powderOnlyCount)) * 100
                         : 0
                     }%`,
                   }}
@@ -518,8 +522,33 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   className="bg-purple-500 h-2.5 rounded-full transition-all duration-500"
                   style={{
                     width: `${
-                      metrics.edpOnlyCount + metrics.edpAndPowderCount > 0
-                        ? (metrics.edpAndPowderCount / (metrics.edpOnlyCount + metrics.edpAndPowderCount)) * 100
+                      metrics.edpOnlyCount + metrics.edpAndPowderCount + metrics.powderOnlyCount > 0
+                        ? (metrics.edpAndPowderCount / (metrics.edpOnlyCount + metrics.edpAndPowderCount + metrics.powderOnlyCount)) * 100
+                        : 0
+                    }%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Powder Coat Only Bar */}
+            <div>
+              <div className="flex justify-between text-xs mb-1 font-medium">
+                <span className="text-amber-300 flex items-center space-x-1">
+                  <Paintbrush className="w-3.5 h-3.5" />
+                  <span>พ่นสีฝุ่นอย่างเดียว (Powder Only)</span>
+                </span>
+                <span className="text-white font-mono font-bold">
+                  {metrics.powderOnlyCount} {t.pieceUnit}
+                </span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-amber-500 h-2.5 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${
+                      metrics.edpOnlyCount + metrics.edpAndPowderCount + metrics.powderOnlyCount > 0
+                        ? (metrics.powderOnlyCount / (metrics.edpOnlyCount + metrics.edpAndPowderCount + metrics.powderOnlyCount)) * 100
                         : 0
                     }%`,
                   }}
@@ -647,6 +676,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       {job.coating_type === 'EDP_ONLY' ? (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
                           EDP ONLY
+                        </span>
+                      ) : job.coating_type === 'POWDER_ONLY' ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                          POWDER ONLY
                         </span>
                       ) : job.coating_type === 'EDP_AND_POWDER' ? (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800">

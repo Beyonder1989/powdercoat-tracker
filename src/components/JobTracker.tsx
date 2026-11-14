@@ -402,10 +402,16 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                             className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold border ${
                               job.coating_type === 'EDP_ONLY'
                                 ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500/60 shadow-sm shadow-cyan-950'
+                                : job.coating_type === 'POWDER_ONLY'
+                                ? 'bg-amber-950/90 text-amber-300 border-amber-500/60 shadow-sm shadow-amber-950'
                                 : 'bg-purple-950/90 text-purple-300 border-purple-500/60 shadow-sm shadow-purple-950'
                             }`}
                           >
-                            {job.coating_type === 'EDP_ONLY' ? t.badgeEdpOnly : t.badgeEdpAndPowder}
+                            {job.coating_type === 'EDP_ONLY'
+                              ? t.badgeEdpOnly
+                              : job.coating_type === 'POWDER_ONLY'
+                              ? t.badgePowderOnly
+                              : t.badgeEdpAndPowder}
                           </span>
                         </div>
                       )}
@@ -709,13 +715,15 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                             </span>
                             {job.coating_type && (
                               <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${
                                   job.coating_type === 'EDP_ONLY'
-                                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
-                                    : 'bg-purple-950 text-purple-300 border border-purple-800'
+                                    ? 'bg-cyan-950 text-cyan-300 border-cyan-800'
+                                    : job.coating_type === 'POWDER_ONLY'
+                                    ? 'bg-amber-950 text-amber-300 border-amber-800'
+                                    : 'bg-purple-950 text-purple-300 border-purple-800'
                                 }`}
                               >
-                                {job.coating_type === 'EDP_ONLY' ? 'EDP ONLY' : 'EDP+POWDER'}
+                                {job.coating_type === 'EDP_ONLY' ? 'EDP ONLY' : job.coating_type === 'POWDER_ONLY' ? 'POWDER ONLY' : 'EDP+POWDER'}
                               </span>
                             )}
                           </div>

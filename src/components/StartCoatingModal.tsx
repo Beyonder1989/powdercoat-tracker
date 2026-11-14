@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Droplets, Sparkles, AlertCircle, ChevronDown, Hash } from 'lucide-react';
+import { X, Check, Droplets, Sparkles, Paintbrush, AlertCircle, ChevronDown, Hash } from 'lucide-react';
 import { PowderCoatJob, CoatingType } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -260,20 +260,20 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
               {t.labelCoatingType}
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Option 1: EDP Only */}
               <div
                 onClick={() => setCoatingType('EDP_ONLY')}
-                className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all relative flex flex-col justify-between ${
+                className={`cursor-pointer rounded-xl p-3 border-2 transition-all relative flex flex-col justify-between ${
                   coatingType === 'EDP_ONLY'
-                    ? 'bg-cyan-950/40 border-cyan-400 ring-2 ring-cyan-500/30 shadow-lg shadow-cyan-950/40'
+                    ? 'bg-cyan-950/50 border-cyan-400 ring-2 ring-cyan-500/30 shadow-lg shadow-cyan-950/40'
                     : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 opacity-80 hover:opacity-100'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400">
-                      <Droplets className="w-5 h-5" />
+                    <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">
+                      <Droplets className="w-4 h-4" />
                     </span>
                     <div
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
@@ -285,15 +285,15 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
                       {coatingType === 'EDP_ONLY' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
-                  <h4 className="font-bold text-sm text-cyan-200">
+                  <h4 className="font-bold text-xs sm:text-sm text-cyan-200">
                     {t.coatingTypeEdpOnly}
                   </h4>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 leading-snug">
                     {t.coatingTypeEdpOnlyDesc}
                   </p>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-800">
-                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/80 font-semibold">
+                  <span className="text-[9px] font-mono text-cyan-400 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-800/80 font-semibold">
                     EDP ONLY
                   </span>
                 </div>
@@ -302,16 +302,16 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
               {/* Option 2: EDP + Powder Coat */}
               <div
                 onClick={() => setCoatingType('EDP_AND_POWDER')}
-                className={`cursor-pointer rounded-xl p-3.5 border-2 transition-all relative flex flex-col justify-between ${
+                className={`cursor-pointer rounded-xl p-3 border-2 transition-all relative flex flex-col justify-between ${
                   coatingType === 'EDP_AND_POWDER'
-                    ? 'bg-purple-950/40 border-purple-400 ring-2 ring-purple-500/30 shadow-lg shadow-purple-950/40'
+                    ? 'bg-purple-950/50 border-purple-400 ring-2 ring-purple-500/30 shadow-lg shadow-purple-950/40'
                     : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 opacity-80 hover:opacity-100'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
-                      <Sparkles className="w-5 h-5" />
+                    <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400">
+                      <Sparkles className="w-4 h-4" />
                     </span>
                     <div
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
@@ -323,16 +323,54 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
                       {coatingType === 'EDP_AND_POWDER' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
                   </div>
-                  <h4 className="font-bold text-sm text-purple-200">
+                  <h4 className="font-bold text-xs sm:text-sm text-purple-200">
                     {t.coatingTypeEdpAndPowder}
                   </h4>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 leading-snug">
                     {t.coatingTypeEdpAndPowderDesc}
                   </p>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-800">
-                  <span className="text-[10px] font-mono text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800/80 font-semibold">
+                  <span className="text-[9px] font-mono text-purple-300 bg-purple-950/80 px-1.5 py-0.5 rounded border border-purple-800/80 font-semibold">
                     EDP + POWDER
+                  </span>
+                </div>
+              </div>
+
+              {/* Option 3: Powder Coat Only (ไม่ชุบ EDP) */}
+              <div
+                onClick={() => setCoatingType('POWDER_ONLY')}
+                className={`cursor-pointer rounded-xl p-3 border-2 transition-all relative flex flex-col justify-between ${
+                  coatingType === 'POWDER_ONLY'
+                    ? 'bg-amber-950/50 border-amber-400 ring-2 ring-amber-500/30 shadow-lg shadow-amber-950/40'
+                    : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 opacity-80 hover:opacity-100'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                      <Paintbrush className="w-4 h-4" />
+                    </span>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        coatingType === 'POWDER_ONLY'
+                          ? 'border-amber-400 bg-amber-500 text-slate-950'
+                          : 'border-slate-600'
+                      }`}
+                    >
+                      {coatingType === 'POWDER_ONLY' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                  </div>
+                  <h4 className="font-bold text-xs sm:text-sm text-amber-200">
+                    {t.coatingTypePowderOnly}
+                  </h4>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 leading-snug">
+                    {t.coatingTypePowderOnlyDesc}
+                  </p>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-800">
+                  <span className="text-[9px] font-mono text-amber-300 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-800/80 font-semibold">
+                    POWDER ONLY
                   </span>
                 </div>
               </div>

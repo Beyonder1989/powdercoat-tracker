@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert, Droplets, Sparkles } from 'lucide-react';
+import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert, Droplets, Sparkles, Paintbrush } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
@@ -222,6 +222,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <div className="p-2 rounded-lg bg-slate-800/80">
                   {job.coating_type === 'EDP_ONLY' ? (
                     <Droplets className="w-5 h-5 text-cyan-400" />
+                  ) : job.coating_type === 'POWDER_ONLY' ? (
+                    <Paintbrush className="w-5 h-5 text-amber-400" />
                   ) : (
                     <Sparkles className="w-5 h-5 text-purple-400" />
                   )}
@@ -232,10 +234,18 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </span>
                   <span
                     className={`text-xs sm:text-sm font-extrabold ${
-                      job.coating_type === 'EDP_ONLY' ? 'text-cyan-300' : 'text-purple-300'
+                      job.coating_type === 'EDP_ONLY'
+                        ? 'text-cyan-300'
+                        : job.coating_type === 'POWDER_ONLY'
+                        ? 'text-amber-300'
+                        : 'text-purple-300'
                     }`}
                   >
-                    {job.coating_type === 'EDP_ONLY' ? t.coatingTypeEdpOnly : t.coatingTypeEdpAndPowder}
+                    {job.coating_type === 'EDP_ONLY'
+                      ? t.coatingTypeEdpOnly
+                      : job.coating_type === 'POWDER_ONLY'
+                      ? t.coatingTypePowderOnly
+                      : t.coatingTypeEdpAndPowder}
                   </span>
                 </div>
               </div>

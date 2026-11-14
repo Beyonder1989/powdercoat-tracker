@@ -11,7 +11,8 @@ export type JobPriority =
 
 export type CoatingType = 
   | 'EDP_ONLY'        // ชุบ EDP อย่างเดียว
-  | 'EDP_AND_POWDER'; // ชุบ EDP + พ่นสีฝุ่น
+  | 'EDP_AND_POWDER'  // ชุบ EDP + พ่นสีฝุ่น
+  | 'POWDER_ONLY';    // พ่นสีฝุ่นอย่างเดียว (ไม่ชุบ EDP)
 
 export interface PowderCoatJob {
   id: string;

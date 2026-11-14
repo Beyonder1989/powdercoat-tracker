@@ -120,10 +120,13 @@ export interface Translations {
   coatingTypeEdpOnlyDesc: string;
   coatingTypeEdpAndPowder: string;
   coatingTypeEdpAndPowderDesc: string;
+  coatingTypePowderOnly: string;
+  coatingTypePowderOnlyDesc: string;
   btnConfirmStartCoating: string;
   badgeHanger: string;
   badgeEdpOnly: string;
   badgeEdpAndPowder: string;
+  badgePowderOnly: string;
 
   // Role & PIN Auth
   modeViewer: string;
@@ -300,10 +303,13 @@ export const translations: Record<Language, Translations> = {
     coatingTypeEdpOnlyDesc: 'ชุบล้างผิวและลงบ่อ EDP ดำด้านกันสนิมเท่านั้น (ไม่เข้าห้องพ่นสีฝุ่น)',
     coatingTypeEdpAndPowder: 'EDP + พ่นสีฝุ่น (ครบระบบ)',
     coatingTypeEdpAndPowderDesc: 'ชุบ EDP รองพื้นกันสนิม + เข้าห้องพ่นสีฝุ่น Powder Coat อบความร้อน',
+    coatingTypePowderOnly: 'พ่นสีฝุ่นอย่างเดียว (ไม่ชุบ EDP)',
+    coatingTypePowderOnlyDesc: 'เข้าห้องพ่นสีฝุ่น Powder Coat และอบความร้อนโดยตรง ไม่ผ่านบ่อชุบ EDP',
     btnConfirmStartCoating: 'ยืนยันเริ่มขึ้นไลน์พ่นสี',
     badgeHanger: 'แฮงค์เกอร์',
     badgeEdpOnly: '💧 EDP อย่างเดียว',
-    badgeEdpAndPowder: '⚡ EDP + พ่นสีฝุ่น',
+    badgeEdpAndPowder: '✨ EDP + พ่นสีฝุ่น',
+    badgePowderOnly: '🎨 พ่นสีฝุ่นอย่างเดียว',
 
     // Role & PIN Auth
     modeViewer: 'โหมดดูงาน (Viewer)',
@@ -479,10 +485,13 @@ export const translations: Record<Language, Translations> = {
     coatingTypeEdpOnlyDesc: 'EDP သံချေးကာကွယ်ရည်ကန်သာ စိမ်ပါမည် (အမှုန့်ဆေးမမှုတ်ပါ)',
     coatingTypeEdpAndPowder: 'EDP + အမှုန့်ဆေးမှုတ် (စနစ်အပြည့်)',
     coatingTypeEdpAndPowderDesc: 'EDP သံချေးကာကွယ်ရည်စိမ်ပြီးနောက် Powder Coat အမှုန့်ဆေးမှုတ် မီးဖုတ်ပါမည်',
+    coatingTypePowderOnly: 'အမှုန့်ဆေးသီးသန့် (EDP မစိမ်ပါ)',
+    coatingTypePowderOnlyDesc: 'EDP ကန်မစိမ်ဘဲ Powder Coat အမှုန့်ဆေး တိုက်ရိုက်မှုတ်မီးဖုတ်ပါမည်',
     btnConfirmStartCoating: 'လိုင်းတင်ဆေးစတင်မည် အတည်ပြုပါ',
     badgeHanger: 'ဟန်းဂါး',
     badgeEdpOnly: '💧 EDP သီးသန့်',
-    badgeEdpAndPowder: '⚡ EDP + ဆေးမှုတ်',
+    badgeEdpAndPowder: '✨ EDP + ဆေးမှုတ်',
+    badgePowderOnly: '🎨 ဆေးမှုတ်သီးသန့်',
 
     // Role & PIN Auth
     modeViewer: 'ကြည့်ရှုသူ မုဒ် (Viewer)',
