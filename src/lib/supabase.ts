@@ -317,17 +317,22 @@ export const updateJobPriority = async (
   return null;
 };
 
-// ลบงาน
+// ลบงาน (ลบทั้งใน Supabase และ LocalStorage เสมอ ไม่ให้งานเด้งกลับมา)
 export const deleteJob = async (id: string): Promise<boolean> => {
-  const supabase = getSupabase();
-  if (supabase) {
-    const { error } = await supabase.from('powdercoat_jobs').delete().eq('id', id);
-    if (!error) return true;
-  }
-
+  // 1. ลบจาก local storage เสมอ
   const localJobs = getLocalJobs();
   const filtered = localJobs.filter((j) => j.id !== id);
   saveLocalJobs(filtered);
+
+  // 2. ลบจาก Supabase
+  const supabase = getSupabase();
+  if (supabase) {
+    const { error } = await supabase.from('powdercoat_jobs').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase delete failed:', error.message);
+    }
+  }
+
   return true;
 };
 

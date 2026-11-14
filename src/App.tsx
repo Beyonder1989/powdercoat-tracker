@@ -89,12 +89,8 @@ export function App() {
     setIsLoading(true);
     try {
       const data = await fetchJobs();
-      if (data.length === 0) {
-        saveLocalJobs(INITIAL_DEMO_JOBS);
-        setJobs(INITIAL_DEMO_JOBS);
-      } else {
-        setJobs(data);
-      }
+      // ไม่ยัดเยียดงานตัวอย่างซ้ำ เมื่อผู้ใช้ลบงานจนหมดจะคงสถานะว่างเปล่าตามจริง
+      setJobs(data);
     } catch (e) {
       console.error('Error loading jobs:', e);
     } finally {
