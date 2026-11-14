@@ -4,9 +4,12 @@ import { ReceiveJobForm } from './components/ReceiveJobForm';
 import { JobTracker } from './components/JobTracker';
 import { JobDetailModal } from './components/JobDetailModal';
 import { DispatchModal } from './components/DispatchModal';
+import { PinModal } from './components/PinModal';
 import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
 import { PowderCoatJob, JobStatus, JobPriority } from './types';
 import { useLanguage } from './context/LanguageContext';
+import { useRole } from './context/RoleContext';
+import { Lock } from 'lucide-react';
 
 // Sample mock data for first-time preview if completely empty
 const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
@@ -68,6 +71,7 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
 
 export function App() {
   const { lang, t } = useLanguage();
+  const { isOperator, openPinModal } = useRole();
   const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing'>('tracker');
   const [jobs, setJobs] = useState<PowderCoatJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -173,13 +177,35 @@ export function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Tab 1: ฟอร์มรับเข้างานใหม่ */}
         {activeTab === 'receive' && (
-          <ReceiveJobForm
-            onSuccess={(newJob) => {
-              setJobs((prev) => [newJob, ...prev]);
-              setActiveTab('tracker');
-            }}
-            onCancel={() => setActiveTab('tracker')}
-          />
+          isOperator ? (
+            <ReceiveJobForm
+              onSuccess={(newJob) => {
+                setJobs((prev) => [newJob, ...prev]);
+                setActiveTab('tracker');
+              }}
+              onCancel={() => setActiveTab('tracker')}
+            />
+          ) : (
+            <div className="max-w-md mx-auto my-12 bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+              <div className="w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-400 mx-auto flex items-center justify-center">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-white">
+                {lang === 'my' ? 'ဆေးမှုတ်ဌာန ဝန်ထမ်းများအတွက်သာ' : 'เฉพาะเจ้าหน้าที่แผนกพ่นสี'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {lang === 'my' 
+                  ? 'အလုပ်အသစ်လက်ခံရန် ဆေးမှုတ်ဌာန PIN နံပါတ် ရိုက်ထည့်ပါ' 
+                  : 'กรุณาใส่รหัส PIN แผนกพ่นสีเพื่อเปิดฟอร์มรับเข้างาน'}
+              </p>
+              <button
+                onClick={() => openPinModal(() => setActiveTab('receive'))}
+                className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-600/30 transition-all"
+              >
+                🔑 {t.btnUnlock}
+              </button>
+            </div>
+          )
         )}
 
         {/* Tab 2: รายการงาน & ติดตามสถานะ */}
@@ -262,6 +288,9 @@ export function App() {
           ? 'Powder Coat Tracker • HAMER 4X4 ဘမ်ဘာ ဆေးမှုတ်စနစ်'
           : 'ระบบรับเข้าและติดตามชิ้นงานพ่นสี (Powder Coat Tracker) • HAMER 4X4'}
       </footer>
+
+      {/* Security PIN Keypad Modal */}
+      <PinModal />
     </div>
   );
 }

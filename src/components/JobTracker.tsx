@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useRole } from '../context/RoleContext';
 
 interface JobTrackerProps {
   jobs: PowderCoatJob[];
@@ -27,6 +28,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   initialFilter = 'ALL',
 }) => {
   const { lang, t } = useLanguage();
+  const { isOperator, openPinModal } = useRole();
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL' | 'URGENT_ONLY'>(initialFilter);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -133,6 +135,25 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Read-Only Banner for Outside Viewers */}
+      {!isOperator && (
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl px-5 py-3 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center space-x-2 text-slate-300">
+            <span className="p-1 rounded-lg bg-orange-500/20 text-orange-400">
+              <Eye className="w-4 h-4" />
+            </span>
+            <span className="font-medium">{t.readOnlyNotice}</span>
+          </div>
+          <button
+            onClick={() => openPinModal()}
+            className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-all shadow-md shadow-orange-600/30 flex items-center space-x-1.5 shrink-0"
+          >
+            <span>🔑</span>
+            <span>{t.btnUnlock}</span>
+          </button>
+        </div>
+      )}
+
       {/* Control & Search Bar */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -413,8 +434,8 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
 
                 {/* Card Actions Bottom */}
                 <div className="p-4 bg-slate-800/40 border-t border-slate-800/80 space-y-2.5">
-                  {/* แถบปรับระดับความด่วน 1-คลิกสำหรับหัวหน้างาน/รองหัวหน้า */}
-                  {onUpdatePriority && (
+                  {/* แถบปรับระดับความด่วน 1-คลิกสำหรับหัวหน้างาน/รองหัวหน้า (เฉพาะเมื่อปลดล็อกสิทธิ์แล้ว) */}
+                  {onUpdatePriority && isOperator && (
                     <div className="flex items-center justify-between text-xs bg-black/30 p-1.5 rounded-xl border border-slate-700/60">
                       <span className="text-[11px] text-slate-400 font-medium pl-1">
                         {t.supervisorPriorityLabel}
@@ -461,61 +482,70 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => onSelectJob(job)}
-                      className="p-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs transition-colors flex items-center space-x-1"
+                      className="p-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs transition-colors flex items-center space-x-1 flex-1 sm:flex-initial justify-center"
                       title={t.btnViewDetail}
                     >
                       <Eye className="w-4 h-4" />
-                      <span className="hidden sm:inline">{t.btnViewDetail}</span>
+                      <span>{t.btnViewDetail}</span>
                     </button>
 
-                    <div className="flex items-center space-x-1.5">
-                      {job.status === 'RECEIVED' && (
-                        <button
-                          onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
-                          className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors"
-                        >
-                          {t.btnStartCoating}
-                        </button>
-                      )}
+                    {isOperator ? (
+                      <div className="flex items-center space-x-1.5">
+                        {job.status === 'RECEIVED' && (
+                          <button
+                            onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
+                            className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition-colors"
+                          >
+                            {t.btnStartCoating}
+                          </button>
+                        )}
 
-                      {job.status === 'IN_PROGRESS' && (
-                        <button
-                          onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>{t.btnFinishCoating}</span>
-                        </button>
-                      )}
+                        {job.status === 'IN_PROGRESS' && (
+                          <button
+                            onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{t.btnFinishCoating}</span>
+                          </button>
+                        )}
 
-                      {job.status === 'COMPLETED' && (
-                        <button
-                          onClick={() => onOpenDispatch(job)}
-                          className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
-                        >
-                          <span>{t.btnHandoverPacking}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                        {job.status === 'COMPLETED' && (
+                          <button
+                            onClick={() => onOpenDispatch(job)}
+                            className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
+                          >
+                            <span>{t.btnHandoverPacking}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
-                      {job.status === 'DISPATCHED_TO_PACKING' && (
-                        <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
+                        {job.status === 'DISPATCHED_TO_PACKING' && (
+                          <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
+                            {t.statusDispatched}
+                          </span>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
+                              onDeleteJob(job.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Read-Only mode badge for outside viewers */
+                      job.status === 'DISPATCHED_TO_PACKING' ? (
+                        <span className="text-[11px] text-purple-300 font-medium px-2.5 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
                           {t.statusDispatched}
                         </span>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
-                            onDeleteJob(job.id);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                      ) : null
+                    )}
                   </div>
                 </div>
               </div>
@@ -612,42 +642,46 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                             <Eye className="w-3.5 h-3.5" />
                           </button>
 
-                          {job.status === 'RECEIVED' && (
-                            <button
-                              onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
-                              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold"
-                            >
-                              {t.btnStartCoating}
-                            </button>
-                          )}
-                          {job.status === 'IN_PROGRESS' && (
-                            <button
-                              onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
-                            >
-                              {t.btnFinishCoating}
-                            </button>
-                          )}
-                          {job.status === 'COMPLETED' && (
-                            <button
-                              onClick={() => onOpenDispatch(job)}
-                              className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold"
-                            >
-                              {t.btnHandoverPacking}
-                            </button>
-                          )}
+                          {isOperator && (
+                            <>
+                              {job.status === 'RECEIVED' && (
+                                <button
+                                  onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold"
+                                >
+                                  {t.btnStartCoating}
+                                </button>
+                              )}
+                              {job.status === 'IN_PROGRESS' && (
+                                <button
+                                  onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+                                >
+                                  {t.btnFinishCoating}
+                                </button>
+                              )}
+                              {job.status === 'COMPLETED' && (
+                                <button
+                                  onClick={() => onOpenDispatch(job)}
+                                  className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold"
+                                >
+                                  {t.btnHandoverPacking}
+                                </button>
+                              )}
 
-                          <button
-                            onClick={() => {
-                              if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
-                                onDeleteJob(job.id);
-                              }
-                            }}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
+                                    onDeleteJob(job.id);
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

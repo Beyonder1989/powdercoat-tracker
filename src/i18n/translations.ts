@@ -107,6 +107,22 @@ export interface Translations {
   dispatchReceiverStaff: string;
   dispatchNotes: string;
   dispatchConfirmBtn: string;
+
+  // Role & PIN Auth
+  modeViewer: string;
+  modeOperator: string;
+  btnUnlock: string;
+  btnLock: string;
+  pinModalTitle: string;
+  pinModalSubtitle: string;
+  pinModalWrong: string;
+  pinModalDefaultHint: string;
+  pinModalClose: string;
+  pinModalConfirm: string;
+  pinChangeBtn: string;
+  pinChangeTitle: string;
+  pinChangeSuccess: string;
+  readOnlyNotice: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -217,6 +233,22 @@ export const translations: Record<Language, Translations> = {
     dispatchReceiverStaff: 'พนักงานผู้รับมอบงาน *',
     dispatchNotes: 'หมายเหตุการส่งมอบ (ถ้ามี)',
     dispatchConfirmBtn: 'ยืนยันการส่งมอบงาน',
+
+    // Role & PIN Auth
+    modeViewer: 'โหมดดูงาน (Viewer)',
+    modeOperator: 'ช่างพ่นสี (ทำงานได้)',
+    btnUnlock: 'ปลดล็อกช่าง',
+    btnLock: 'ล็อกระบบ',
+    pinModalTitle: 'ใส่รหัส PIN แผนกพ่นสี',
+    pinModalSubtitle: 'เพื่อปลดล็อกสิทธิ์การรับงาน ปรับความด่วน และเปลี่ยนสถานะ',
+    pinModalWrong: 'รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง',
+    pinModalDefaultHint: 'รหัสเริ่มต้นคือ 1234',
+    pinModalClose: 'ยกเลิก',
+    pinModalConfirm: 'ยืนยันรหัส PIN',
+    pinChangeBtn: 'เปลี่ยนรหัส PIN',
+    pinChangeTitle: 'ตั้งรหัส PIN แผนกพ่นสีใหม่',
+    pinChangeSuccess: 'เปลี่ยนรหัส PIN เรียบร้อยแล้ว',
+    readOnlyNotice: 'โหมดดูงาน (คนนอกแผนก): ไม่สามารถแก้ไขหรือเปลี่ยนสถานะได้',
   },
 
   my: {
@@ -326,5 +358,21 @@ export const translations: Record<Language, Translations> = {
     dispatchReceiverStaff: 'လက်ခံမည့် ဝန်ထမ်း *',
     dispatchNotes: 'လွှဲပြောင်းမှု မှတ်ချက် (ရှိလျှင်)',
     dispatchConfirmBtn: 'လွှဲပြောင်းမှု အတည်ပြုမည်',
+
+    // Role & PIN Auth
+    modeViewer: 'ကြည့်ရှုသူ မုဒ် (Viewer)',
+    modeOperator: 'ဆေးမှုတ်သူ မုဒ် (Operator)',
+    btnUnlock: 'ခွင့်ပြုချက် ဖွင့်ရန်',
+    btnLock: 'ပြန်လည် ပိတ်ဆို့ရန်',
+    pinModalTitle: 'ဆေးမှုတ်ဌာန PIN နံပါတ် ရိုက်ထည့်ပါ',
+    pinModalSubtitle: 'အလုပ်လက်ခံရန်၊ အရေးပေါ်အဆင့် ပြောင်းရန်နှင့် လုပ်ငန်းစဉ်ပြင်ဆင်ရန်',
+    pinModalWrong: 'PIN နံပါတ် မှားယွင်းနေပါသည် ထပ်မံကြိုးစားပါ',
+    pinModalDefaultHint: 'မူလ PIN နံပါတ်မှာ 1234 ဖြစ်သည်',
+    pinModalClose: 'ပယ်ဖျက်မည်',
+    pinModalConfirm: 'အတည်ပြုမည်',
+    pinChangeBtn: 'PIN ပြောင်းရန်',
+    pinChangeTitle: 'PIN အသစ် သတ်မှတ်ပါ',
+    pinChangeSuccess: 'PIN ပြောင်းလဲပြီးပါပြီ',
+    readOnlyNotice: 'ကြည့်ရှုရန်သာ: ပြင်ဆင်ခြင်းနှင့် အဆင့်ပြောင်းခြင်း မပြုလုပ်နိုင်ပါ',
   },
 };
