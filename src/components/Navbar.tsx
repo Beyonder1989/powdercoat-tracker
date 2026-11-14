@@ -1,12 +1,12 @@
 import React from 'react';
-import { Layers, PlusCircle, PackageCheck, Paintbrush, Lock, Unlock, Eye, ShieldCheck, KeyRound } from 'lucide-react';
+import { Layers, PlusCircle, PackageCheck, Paintbrush, Lock, Unlock, Eye, ShieldCheck, KeyRound, BarChart3 } from 'lucide-react';
 import { JobStatus } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
 
 interface NavbarProps {
-  activeTab: 'receive' | 'tracker' | 'packing';
-  setActiveTab: (tab: 'receive' | 'tracker' | 'packing') => void;
+  activeTab: 'receive' | 'tracker' | 'packing' | 'analytics';
+  setActiveTab: (tab: 'receive' | 'tracker' | 'packing' | 'analytics') => void;
   counts: Record<JobStatus, number>;
 }
 
@@ -165,6 +165,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <PackageCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>{t.tabPacking}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors shrink-0 ${
+              activeTab === 'analytics'
+                ? 'bg-slate-800 text-amber-400 border border-slate-700'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>{t.tabAnalytics}</span>
           </button>
         </div>
       </div>

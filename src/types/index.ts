@@ -32,8 +32,11 @@ export interface PowderCoatJob {
   receiver_name: string;          // เจ้าหน้าที่แผนกพ่นสีผู้รับงาน
   coating_started_at?: string;    // วันที่และเวลาเริ่มพ่นสี
   coating_finished_at?: string;   // วันที่และเวลาพ่นสีเสร็จ
-  dispatched_at?: string;         // วันที่และเวลาส่งมอบให้แพ็คกิ้ง
-  packing_receiver_name?: string; // ชื่อเจ้าหน้าที่แผนกแพ็คกิ้งผู้รับงาน
+  dispatched_at?: string;         // วันที่และเวลาส่งมอบให้แผนกถัดไป
+  packing_receiver_name?: string; // ชื่อเจ้าหน้าที่ผู้รับงานปลายทาง
+  target_department?: string;     // แผนกปลายทางที่ส่งมอบ เช่น Packing(PK), Assembly(AS), QC, Welding(WD)
+  dispatch_slip_image_url?: string;// URL รูปถ่ายใบส่งมอบงานตอนส่งออก
+  dispatch_part_image_url?: string;// URL รูปถ่ายตัวชิ้นงานตอนส่งมอบ
   notes?: string;                 // หมายเหตุ
   created_at: string;
 }

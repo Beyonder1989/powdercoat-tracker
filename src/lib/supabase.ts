@@ -249,9 +249,12 @@ export const updateJobStatus = async (
 
     if (error) {
       console.warn('Supabase update failed:', error.message);
-      // หากเกิดปัญหาเรื่องคอลัมน์ใหม่ (hanger_no หรือ coating_type) ยังไม่ได้รัน SQL ใน Supabase
-      if (error.message?.includes('hanger_no') || error.message?.includes('coating_type')) {
-        const { hanger_no, coating_type, ...fallbackPayload } = updatePayload;
+      // หากเกิดปัญหาเรื่องคอลัมน์ใหม่ที่ยังไม่ได้รัน SQL ใน Supabase
+      const newColumns = ['hanger_no', 'coating_type', 'target_department', 'dispatch_slip_image_url', 'dispatch_part_image_url'];
+      const hasMissingCol = newColumns.some(col => error.message?.includes(col));
+      if (hasMissingCol) {
+        const fallbackPayload = { ...updatePayload };
+        newColumns.forEach(col => delete (fallbackPayload as any)[col]);
         const { data: fbData, error: fbError } = await supabase
           .from('powdercoat_jobs')
           .update(fallbackPayload)

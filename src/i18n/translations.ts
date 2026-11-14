@@ -8,6 +8,7 @@ export interface Translations {
   tabAllJobs: string;
   tabReceive: string;
   tabPacking: string;
+  tabAnalytics: string;
   btnNewJob: string;
   statsReceived: string;
   statsInProgress: string;
@@ -139,6 +140,43 @@ export interface Translations {
   pinChangeTitle: string;
   pinChangeSuccess: string;
   readOnlyNotice: string;
+
+  // Dispatch Photos & Analytics
+  dispatchSlipPhoto: string;
+  dispatchPartPhoto: string;
+  dispatchPhotosRequiredAlert: string;
+  incomingPhotosTitle: string;
+  dispatchPhotosTitle: string;
+  labelTargetDept: string;
+  labelDuration: string;
+  analyticsTitle: string;
+  analyticsSubtitle: string;
+  filterToday: string;
+  filterYesterday: string;
+  filterLast7Days: string;
+  filterAllTime: string;
+  kpiTotalCoated: string;
+  kpiTotalHangers: string;
+  kpiAvgTime: string;
+  kpiReceived: string;
+  kpiDispatched: string;
+  kpiWipPending: string;
+  wipWaiting: string;
+  wipCoating: string;
+  wipFinished: string;
+  btnExportExcel: string;
+  sectionCoatingProcess: string;
+  sectionSenderDepts: string;
+  sectionTargetDepts: string;
+  dailyMovementTitle: string;
+  colTracking: string;
+  colModel: string;
+  colBox: string;
+  colHanger: string;
+  colProcess: string;
+  colTime: string;
+  colDuration: string;
+  colStatus: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -149,7 +187,8 @@ export const translations: Record<Language, Translations> = {
     brandSubtitle: 'ระบบรับเข้าและส่งมอบงานพ่นสีอะไหล่กันชน (HAMER 4X4)',
     tabAllJobs: 'รายการงานทั้งหมด',
     tabReceive: 'ฟอร์มรับเข้า (ถ่ายรูป)',
-    tabPacking: 'ส่งมอบแผนกแพ็คกิ้ง',
+    tabPacking: 'ส่งมอบงานออก',
+    tabAnalytics: 'สถิติ & Analytics',
     btnNewJob: 'รับเข้างานใหม่',
     statsReceived: 'รอพ่น',
     statsInProgress: 'กำลังพ่น',
@@ -281,6 +320,43 @@ export const translations: Record<Language, Translations> = {
     pinChangeTitle: 'ตั้งรหัส PIN แผนกพ่นสีใหม่',
     pinChangeSuccess: 'เปลี่ยนรหัส PIN เรียบร้อยแล้ว',
     readOnlyNotice: 'โหมดดูงาน (คนนอกแผนก): ไม่สามารถแก้ไขหรือเปลี่ยนสถานะได้',
+
+    // Dispatch Photos & Analytics
+    dispatchSlipPhoto: 'ภาพถ่ายใบส่งมอบงานออก *',
+    dispatchPartPhoto: 'ภาพถ่ายชิ้นงานตอนส่งมอบ *',
+    dispatchPhotosRequiredAlert: 'กรุณาแนบภาพถ่ายใบส่งมอบและภาพชิ้นงานก่อนยืนยันส่งมอบ',
+    incomingPhotosTitle: 'ภาพหลักฐานรับเข้า (ใบส่งมอบ + ชิ้นงานขาเข้า)',
+    dispatchPhotosTitle: 'ภาพหลักฐานส่งมอบ (ใบส่งมอบออก + ชิ้นงานขาออก)',
+    labelTargetDept: 'ส่งต่อไปยังแผนก',
+    labelDuration: 'ระยะเวลาพ่นสี',
+    analyticsTitle: 'แดชบอร์ดสรุปสถิติ & การเคลื่อนไหวของงาน',
+    analyticsSubtitle: 'สรุปยอดพ่นสีรายวัน อัตราใช้แฮงค์เกอร์ และยอดงานคงค้างในแผนก (Real-time)',
+    filterToday: 'วันนี้ (Today)',
+    filterYesterday: 'เมื่อวาน',
+    filterLast7Days: '7 วันล่าสุด',
+    filterAllTime: 'ทั้งหมด',
+    kpiTotalCoated: 'ชิ้นงานพ่นเสร็จ',
+    kpiTotalHangers: 'แฮงค์เกอร์ที่ใช้',
+    kpiAvgTime: 'เวลาเฉลี่ย/งาน',
+    kpiReceived: 'ยอดรับเข้า',
+    kpiDispatched: 'ยอดส่งมอบออก',
+    kpiWipPending: 'งานค้างสะสมในแผนก',
+    wipWaiting: 'รอเตรียมพ่น',
+    wipCoating: 'อยู่บนไลน์พ่น',
+    wipFinished: 'เสร็จรอส่ง',
+    btnExportExcel: 'ส่งออกข้อมูล Excel / CSV',
+    sectionCoatingProcess: 'สัดส่วนกระบวนการพ่นสี',
+    sectionSenderDepts: 'แผนกต้นทางที่ส่งงานมามากที่สุด',
+    sectionTargetDepts: 'แผนกปลายทางที่ส่งมอบออกไป',
+    dailyMovementTitle: 'ตารางบันทึกความเคลื่อนไหวงวดงาน (Movement Audit Log)',
+    colTracking: 'รหัสงาน',
+    colModel: 'รุ่น / ชิ้นส่วน',
+    colBox: 'ตู้สินค้า',
+    colHanger: 'แฮงค์เกอร์',
+    colProcess: 'กระบวนการ',
+    colTime: 'เวลาเริ่ม - เสร็จ',
+    colDuration: 'เวลาที่ใช้',
+    colStatus: 'สถานะ',
   },
 
   my: {
@@ -290,7 +366,8 @@ export const translations: Record<Language, Translations> = {
     brandSubtitle: 'ဘမ်ဘာအစိတ်အပိုင်း ဆေးမှုတ်လက်ခံခြင်းနှင့် လွှဲပြောင်းခြင်းစနစ် (HAMER 4X4)',
     tabAllJobs: 'လုပ်ငန်းစဉ် အားလုံး',
     tabReceive: 'လက်ခံပုံစံ (ဓာတ်ပုံ)',
-    tabPacking: 'ထုပ်ပိုးဌာနသို့ လွှဲပြောင်းရန်',
+    tabPacking: 'လွှဲပြောင်းပေးအပ်ခြင်း',
+    tabAnalytics: 'စာရင်းအင်း & Analytics',
     btnNewJob: 'အလုပ်အသစ် လက်ခံမည်',
     statsReceived: 'စောင့်ဆိုင်း',
     statsInProgress: 'ဆေးမှုတ်ဆဲ',
@@ -422,5 +499,42 @@ export const translations: Record<Language, Translations> = {
     pinChangeTitle: 'PIN အသစ် သတ်မှတ်ပါ',
     pinChangeSuccess: 'PIN ပြောင်းလဲပြီးပါပြီ',
     readOnlyNotice: 'ကြည့်ရှုရန်သာ: ပြင်ဆင်ခြင်းနှင့် အဆင့်ပြောင်းခြင်း မပြုလုပ်နိုင်ပါ',
+
+    // Dispatch Photos & Analytics
+    dispatchSlipPhoto: 'လွှဲပြောင်းလက်မှတ် ဓာတ်ပုံ *',
+    dispatchPartPhoto: 'လွှဲပြောင်းပစ္စည်း ဓာတ်ပုံ *',
+    dispatchPhotosRequiredAlert: 'ကျေးဇူးပြု၍ လွှဲပြောင်းလက်မှတ်နှင့် ပစ္စည်းဓာတ်ပုံ ထည့်သွင်းပါ',
+    incomingPhotosTitle: 'အဝင် သက်သေဓာတ်ပုံများ (လက်ခံလွှာ + ပစ္စည်း)',
+    dispatchPhotosTitle: 'အထွက် သက်သေဓာတ်ပုံများ (လွှဲပြောင်းလွှာ + ပစ္စည်း)',
+    labelTargetDept: 'လွှဲပြောင်းမည့် ဌာန',
+    labelDuration: 'ဆေးမှုတ်ကြာချိန်',
+    analyticsTitle: 'စာရင်းအင်းနှင့် လုပ်ငန်းစဉ်လှုပ်ရှားမှု ဒက်ရှ်ဘုတ်',
+    analyticsSubtitle: 'နေ့စဉ်ဆေးမှုတ်မှု၊ ဟန်းဂါးအသုံးပြုမှုနှင့် လက်ကျန်အလုပ်များ (Real-time)',
+    filterToday: 'ယနေ့ (Today)',
+    filterYesterday: 'မနေ့က',
+    filterLast7Days: 'လွန်ခဲ့သော ၇ ရက်',
+    filterAllTime: 'အားလုံး',
+    kpiTotalCoated: 'ဆေးမှုတ်ပြီး ပစ္စည်း',
+    kpiTotalHangers: 'သုံးခဲ့သော ဟန်းဂါး',
+    kpiAvgTime: 'ပျမ်းမျှကြာချိန်',
+    kpiReceived: 'အဝင်ပစ္စည်း',
+    kpiDispatched: 'လွှဲပြောင်းပြီး',
+    kpiWipPending: 'ဌာနတွင်း လက်ကျန်',
+    wipWaiting: 'စောင့်ဆိုင်း',
+    wipCoating: 'လိုင်းပေါ်ရှိ',
+    wipFinished: 'လွှဲပြောင်းရန်စောင့်',
+    btnExportExcel: 'Excel / CSV ထုတ်ယူမည်',
+    sectionCoatingProcess: 'ဆေးမှုတ်လုပ်ငန်းစဉ် အချိုး',
+    sectionSenderDepts: 'အများဆုံး ပို့ဆောင်သော ဌာနများ',
+    sectionTargetDepts: 'အများဆုံး လက်ခံသော ဌာနများ',
+    dailyMovementTitle: 'လုပ်ငန်းစဉ် လှုပ်ရှားမှု မှတ်တမ်းဇယား (Movement Audit Log)',
+    colTracking: 'ကုဒ်',
+    colModel: 'မော်ဒယ် / ပစ္စည်း',
+    colBox: 'ပုံးနံပါတ်',
+    colHanger: 'ဟန်းဂါး',
+    colProcess: 'လုပ်ငန်းစဉ်',
+    colTime: 'စတင် - ပြီးချိန်',
+    colDuration: 'ကြာချိန်',
+    colStatus: 'အခြေအနေ',
   },
 };

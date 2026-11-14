@@ -78,6 +78,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const statusInfo = getStatusBadge(job.status);
   const priorityInfo = getPriorityBadge(job.priority);
 
+  // คำนวณระยะเวลาพ่นสี
+  const formatDuration = (start?: string, end?: string) => {
+    if (!start) return '-';
+    const startTime = new Date(start).getTime();
+    const endTime = end ? new Date(end).getTime() : Date.now();
+    const diffMinutes = Math.floor((endTime - startTime) / 60000);
+    if (diffMinutes < 1) return '< 1 นาที';
+    const hours = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    if (hours === 0) return `${mins} นาที`;
+    return `${hours} ชม. ${mins > 0 ? `${mins} นาที` : ''}`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className={`bg-slate-900 border rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-8 ${
@@ -270,7 +283,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     ? new Date(job.coating_finished_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')
                     : '-'}
                 </span>
-                <span className="text-xs text-slate-400">{t.labelQcPassed}</span>
+                <span className="text-xs text-slate-400 block">{t.labelQcPassed}</span>
+                {job.coating_started_at && (
+                  <span className="text-[11px] font-mono text-emerald-300 font-bold block mt-0.5">
+                    ⏱️ {t.labelDuration}: {formatDuration(job.coating_started_at, job.coating_finished_at)}
+                  </span>
+                )}
               </div>
 
               <div className="border-l-2 border-purple-500 pl-3">
@@ -280,7 +298,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     ? new Date(job.dispatched_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')
                     : '-'}
                 </span>
-                <span className="text-xs text-slate-400">
+                {job.target_department && (
+                  <span className="text-xs text-purple-300 font-semibold block">
+                    🏢 {job.target_department}
+                  </span>
+                )}
+                <span className="text-xs text-slate-400 block">
                   {t.labelDispatchedTo}: {job.packing_receiver_name || '-'}
                 </span>
               </div>
@@ -294,17 +317,17 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             )}
           </div>
 
-          {/* Evidence Photos */}
-          <div>
-            <h4 className="font-semibold text-slate-200 mb-3 flex items-center space-x-1.5">
-              <span>{t.photosTitle}</span>
+          {/* Evidence Photos: 1. ขาเข้า */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-slate-200 flex items-center space-x-1.5 text-xs sm:text-sm">
+              <span>📥 {t.incomingPhotosTitle}</span>
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Photo 1: Slip */}
               <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-orange-300">1. {t.slipPhotoLabel}</span>
+                  <span className="text-xs font-semibold text-orange-300">1. {t.slipPhotoLabel} (รับเข้า)</span>
                   {job.delivery_slip_image_url && (
                     <a
                       href={job.delivery_slip_image_url}
@@ -335,7 +358,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               {/* Photo 2: Part */}
               <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-orange-300">2. {t.partPhotoLabel}</span>
+                  <span className="text-xs font-semibold text-orange-300">2. {t.partPhotoLabel} (รับเข้า)</span>
                   {job.part_image_url && (
                     <a
                       href={job.part_image_url}
@@ -364,6 +387,77 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Evidence Photos: 2. ขาออก (ถ้ามี) */}
+          {(job.dispatch_slip_image_url || job.dispatch_part_image_url) && (
+            <div className="space-y-3 pt-2 border-t border-slate-800">
+              <h4 className="font-semibold text-purple-300 flex items-center space-x-1.5 text-xs sm:text-sm">
+                <span>📤 {t.dispatchPhotosTitle}</span>
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {job.dispatch_slip_image_url && (
+                  <div className="bg-purple-950/20 p-3 rounded-xl border border-purple-800/60">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-purple-300">1. {t.dispatchSlipPhoto}</span>
+                      <a
+                        href={job.dispatch_slip_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-400 hover:text-white flex items-center space-x-1"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>{t.btnOpenFullImage}</span>
+                      </a>
+                    </div>
+                    <div
+                      onClick={() => setSelectedPhoto(job.dispatch_slip_image_url || null)}
+                      className="aspect-video bg-black/40 rounded-lg overflow-hidden border border-purple-800/40 cursor-pointer group relative"
+                    >
+                      <img
+                        src={job.dispatch_slip_image_url}
+                        alt="Dispatch Slip"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs transition-opacity">
+                        {t.clickToZoom}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {job.dispatch_part_image_url && (
+                  <div className="bg-purple-950/20 p-3 rounded-xl border border-purple-800/60">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-purple-300">2. {t.dispatchPartPhoto}</span>
+                      <a
+                        href={job.dispatch_part_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-400 hover:text-white flex items-center space-x-1"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>{t.btnOpenFullImage}</span>
+                      </a>
+                    </div>
+                    <div
+                      onClick={() => setSelectedPhoto(job.dispatch_part_image_url || null)}
+                      className="aspect-video bg-black/40 rounded-lg overflow-hidden border border-purple-800/40 cursor-pointer group relative"
+                    >
+                      <img
+                        src={job.dispatch_part_image_url}
+                        alt="Dispatch Part"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs transition-opacity">
+                        {t.clickToZoom}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer with Workflow Action Buttons */}

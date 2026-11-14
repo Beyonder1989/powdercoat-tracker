@@ -3,7 +3,8 @@ import { Navbar } from './components/Navbar';
 import { ReceiveJobForm } from './components/ReceiveJobForm';
 import { JobTracker } from './components/JobTracker';
 import { JobDetailModal } from './components/JobDetailModal';
-import { DispatchModal } from './components/DispatchModal';
+import { DispatchModal, DispatchData } from './components/DispatchModal';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { PinModal } from './components/PinModal';
 import { StartCoatingModal } from './components/StartCoatingModal';
 import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
@@ -77,7 +78,7 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
 export function App() {
   const { lang, t } = useLanguage();
   const { isOperator, openPinModal } = useRole();
-  const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing'>('tracker');
+  const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing' | 'analytics'>('tracker');
   const [jobs, setJobs] = useState<PowderCoatJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedJob, setSelectedJob] = useState<PowderCoatJob | null>(null);
@@ -143,11 +144,14 @@ export function App() {
     });
   };
 
-  // Handle dispatch confirmation to Packing
-  const handleConfirmDispatch = async (jobId: string, packingReceiverName: string, notes?: string) => {
+  // Handle dispatch confirmation to other departments (with Photos & Destination Dept)
+  const handleConfirmDispatch = async (jobId: string, dispatchData: DispatchData) => {
     const updated = await updateJobStatus(jobId, 'DISPATCHED_TO_PACKING', {
-      packing_receiver_name: packingReceiverName,
-      notes: notes ? `${notes} (ส่งมอบให้แผนกแพ็คกิ้งเรียบร้อย)` : undefined,
+      target_department: dispatchData.targetDepartment,
+      packing_receiver_name: dispatchData.receiverName,
+      dispatch_slip_image_url: dispatchData.dispatchSlipImageUrl,
+      dispatch_part_image_url: dispatchData.dispatchPartImageUrl,
+      notes: dispatchData.notes,
     });
 
     if (updated) {
@@ -276,6 +280,14 @@ export function App() {
               initialFilter="ALL"
             />
           </div>
+        )}
+
+        {/* Tab 4: แดชบอร์ดสรุปสถิติ & วิเคราะห์ข้อมูล (Data Analytics) */}
+        {activeTab === 'analytics' && (
+          <AnalyticsDashboard
+            jobs={jobs}
+            onSelectJob={setSelectedJob}
+          />
         )}
       </main>
 
