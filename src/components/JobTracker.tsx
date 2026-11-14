@@ -134,19 +134,19 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   const urgentCount = jobs.filter((j) => j.priority === 'URGENT' || j.priority === 'HIGH').length;
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 w-full max-w-full min-w-0">
       {/* Read-Only Banner for Outside Viewers */}
       {!isOperator && (
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl px-5 py-3 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl px-4 sm:px-5 py-3 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs w-full max-w-full min-w-0">
           <div className="flex items-center space-x-2 text-slate-300">
-            <span className="p-1 rounded-lg bg-orange-500/20 text-orange-400">
+            <span className="p-1 rounded-lg bg-orange-500/20 text-orange-400 shrink-0">
               <Eye className="w-4 h-4" />
             </span>
             <span className="font-medium">{t.readOnlyNotice}</span>
           </div>
           <button
             onClick={() => openPinModal()}
-            className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-all shadow-md shadow-orange-600/30 flex items-center space-x-1.5 shrink-0"
+            className="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-all shadow-md shadow-orange-600/30 flex items-center space-x-1.5 shrink-0 self-end sm:self-auto"
           >
             <span>🔑</span>
             <span>{t.btnUnlock}</span>
@@ -155,7 +155,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
       )}
 
       {/* Control & Search Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 w-full max-w-full min-w-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -206,7 +206,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
         </div>
 
         {/* Status Filter Pills */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs scrollbar-none">
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs scrollbar-none w-full max-w-full min-w-0">
           {/* ปุ่มงานด่วนพิเศษ */}
           <button
             onClick={() => setStatusFilter(statusFilter === 'URGENT_ONLY' ? 'ALL' : 'URGENT_ONLY')}

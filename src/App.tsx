@@ -165,7 +165,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-x-hidden max-w-full w-full">
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
