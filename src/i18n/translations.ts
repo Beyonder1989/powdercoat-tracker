@@ -143,7 +143,7 @@ export const translations: Record<Language, Translations> = {
     // Priorities
     priorityUrgent: 'ด่วนที่สุด! (Urgent)',
     priorityHigh: 'งานด่วน (High)',
-    priorityNormal: 'ทั่วไป (Normal)',
+    priorityNormal: 'งานทั่วไป (Normal)',
     urgentBannerText: 'งานด่วนที่สุด ต้องรีบพ่นก่อน!',
     urgentNotice: 'ด่วนมาก',
     supervisorPriorityLabel: 'หัวหน้างานปรับความด่วน:',

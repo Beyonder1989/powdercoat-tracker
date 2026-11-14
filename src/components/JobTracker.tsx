@@ -126,7 +126,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
           label: t.priorityNormal,
           badgeClass: 'bg-slate-800 text-slate-300 border-slate-700',
           cardClass: 'border-slate-800 hover:border-slate-700',
-          banner: null,
+          banner: 'bg-gradient-to-r from-slate-800 via-emerald-950/70 to-slate-800 text-emerald-300 border-b border-emerald-900/60',
         };
     }
   };
@@ -298,19 +298,21 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                 key={job.id}
                 className={`bg-slate-900 border rounded-2xl transition-all flex flex-col justify-between overflow-hidden group ${priorityInfo.cardClass}`}
               >
-                {/* 🔴 แถบสีด้านบนสำหรับงานด่วน/ด่วนที่สุด */}
+                {/* แถบสีด้านบนสำหรับระดับความเร่งด่วนของงาน (ด่วนที่สุด, งานด่วน, ทั่วไป/ปกติ) */}
                 {priorityInfo.banner && (
                   <div className={`px-4 py-1.5 text-xs font-black flex items-center justify-between tracking-wide shadow-md ${priorityInfo.banner}`}>
                     <div className="flex items-center space-x-1.5">
                       {job.priority === 'URGENT' ? (
-                        <Flame className="w-4 h-4 animate-bounce" />
+                        <Flame className="w-4 h-4 animate-bounce text-yellow-300" />
+                      ) : job.priority === 'HIGH' ? (
+                        <Zap className="w-4 h-4 text-yellow-300" />
                       ) : (
-                        <Zap className="w-4 h-4" />
+                        <Package className="w-4 h-4 text-emerald-400" />
                       )}
                       <span>{priorityInfo.label}</span>
                     </div>
                     <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-mono font-bold">
-                      {job.priority}
+                      {job.priority || 'NORMAL'}
                     </span>
                   </div>
                 )}
