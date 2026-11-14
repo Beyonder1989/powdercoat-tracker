@@ -247,18 +247,18 @@ export function App() {
           />
         )}
 
-        {/* Tab 3: แดชบอร์ดส่งมอบแผนกแพ็คกิ้ง */}
+        {/* Tab 3: แดชบอร์ดส่งมอบงานออก */}
         {activeTab === 'packing' && (
           <div className="space-y-6">
             <div className="bg-purple-950/40 border border-purple-800/80 rounded-2xl p-5 text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-white">
-                  {lang === 'my' ? 'ထုပ်ပိုးဌာနသို့ လွှဲပြောင်းပေးအပ်ခြင်း လုပ်ငန်းစဉ်' : 'กระบวนการส่งต่องานให้แผนกแพ็คกิ้ง'}
+                  {lang === 'my' ? 'လွှဲပြောင်းပေးအပ်ခြင်း လုပ်ငန်းစဉ်' : 'กระบวนการส่งมอบงานออก (Dispatch Handover)'}
                 </h3>
                 <p className="text-xs text-purple-300 mt-0.5">
                   {lang === 'my'
-                    ? 'ဆေးမှုတ်ပြီးစီးသော ပစ္စည်းများနှင့် ထုပ်ပိုးဌာနသို့ ပို့ဆောင်ပြီးသော အလုပ်များ'
-                    : 'แสดงรายการชิ้นงานที่พ่นสีเสร็จสมบูรณ์แล้ว และชิ้นงานที่ส่งมอบให้แพ็คกิ้งเรียบร้อย'}
+                    ? 'ဆေးမှုတ်ပြီးစီးသော ပစ္စည်းများနှင့် အခြားဌာနများသို့ လွှဲပြောင်းပြီးသော အလုပ်များ'
+                    : 'แสดงรายการชิ้นงานที่พ่นสีเสร็จสมบูรณ์แล้ว และชิ้นงานที่ส่งมอบออกไปยังแผนกต่างๆ เรียบร้อยแล้ว'}
                 </p>
               </div>
               <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-900 border border-purple-700 text-purple-200">

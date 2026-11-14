@@ -66,12 +66,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
           dot: 'bg-emerald-400',
         };
-      case 'DISPATCHED_TO_PACKING':
+      case 'DISPATCHED_TO_PACKING': {
+        const deptLabel = job.target_department ? ` (${job.target_department})` : '';
         return {
-          label: t.statusDispatched,
+          label: `${t.statusDispatched}${deptLabel}`,
           bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
           dot: 'bg-purple-400',
         };
+      }
     }
   };
 
@@ -302,7 +304,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </div>
 
               <div className="border-l-2 border-purple-500 pl-3">
-                <span className="text-slate-400 block text-xs">{t.timelineDispatched}</span>
+                <span className="text-slate-400 block text-xs">
+                  {t.timelineDispatched} {job.target_department ? `(${job.target_department})` : ''}
+                </span>
                 <span className="text-white font-medium block mt-0.5">
                   {job.dispatched_at
                     ? new Date(job.dispatched_at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH')

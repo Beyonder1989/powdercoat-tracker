@@ -85,7 +85,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
     });
   }, [jobs, statusFilter, searchQuery]);
 
-  const getStatusBadge = (status: JobStatus) => {
+  const getStatusBadge = (status: JobStatus, targetDept?: string) => {
     switch (status) {
       case 'RECEIVED':
         return {
@@ -105,12 +105,14 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
           bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
           dot: 'bg-emerald-400',
         };
-      case 'DISPATCHED_TO_PACKING':
+      case 'DISPATCHED_TO_PACKING': {
+        const deptLabel = targetDept ? ` (${targetDept})` : '';
         return {
-          label: t.statusDispatched,
+          label: `${t.statusDispatched}${deptLabel}`,
           bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
           dot: 'bg-purple-400',
         };
+      }
     }
   };
 
@@ -304,7 +306,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
         /* Card Grid View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredJobs.map((job) => {
-            const statusInfo = getStatusBadge(job.status);
+            const statusInfo = getStatusBadge(job.status, job.target_department);
             const priorityInfo = getPriorityInfo(job.priority);
 
             return (
@@ -598,8 +600,9 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                         )}
 
                         {job.status === 'DISPATCHED_TO_PACKING' && (
-                          <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
-                            {t.statusDispatched}
+                          <span className="text-[11px] text-purple-300 font-medium px-2 py-1 bg-purple-950/60 rounded-lg border border-purple-800 flex items-center space-x-1">
+                            <CheckCircle2 className="w-3 h-3 text-purple-400" />
+                            <span>{t.statusDispatched} {job.target_department ? `(${job.target_department})` : ''}</span>
                           </span>
                         )}
 
@@ -618,8 +621,9 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     ) : (
                       /* Read-Only mode badge for outside viewers */
                       job.status === 'DISPATCHED_TO_PACKING' ? (
-                        <span className="text-[11px] text-purple-300 font-medium px-2.5 py-1 bg-purple-950/60 rounded-lg border border-purple-800">
-                          {t.statusDispatched}
+                        <span className="text-[11px] text-purple-300 font-medium px-2.5 py-1 bg-purple-950/60 rounded-lg border border-purple-800 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3 h-3 text-purple-400" />
+                          <span>{t.statusDispatched} {job.target_department ? `(${job.target_department})` : ''}</span>
                         </span>
                       ) : null
                     )}
@@ -648,7 +652,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {filteredJobs.map((job) => {
-                  const statusInfo = getStatusBadge(job.status);
+                  const statusInfo = getStatusBadge(job.status, job.target_department);
                   const priorityInfo = getPriorityInfo(job.priority);
                   return (
                     <tr key={job.id} className={`hover:bg-slate-800/40 transition-colors ${job.priority === 'URGENT' ? 'bg-rose-950/20' : ''}`}>
