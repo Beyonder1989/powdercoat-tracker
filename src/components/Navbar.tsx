@@ -47,30 +47,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Quick Stats on desktop */}
-          <div className="hidden xl:flex items-center space-x-2 text-xs">
-            <div className="bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60 flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-              <span className="text-slate-400">{t.statsReceived}:</span>
-              <span className="font-semibold text-white">{counts.RECEIVED || 0}</span>
-            </div>
-            <div className="bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60 flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-              <span className="text-slate-400">{t.statsInProgress}:</span>
-              <span className="font-semibold text-white">{counts.IN_PROGRESS || 0}</span>
-            </div>
-            <div className="bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60 flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <span className="text-slate-400">{t.statsCompleted}:</span>
-              <span className="font-semibold text-white">{counts.COMPLETED || 0}</span>
-            </div>
-            <div className="bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60 flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-purple-400"></span>
-              <span className="text-slate-400">{t.statsDispatched}:</span>
-              <span className="font-semibold text-white">{counts.DISPATCHED_TO_PACKING || 0}</span>
-            </div>
-          </div>
-
           {/* Right Area: Role/PIN Auth + Language Switcher + New Job Action */}
           <div className="flex items-center space-x-2 shrink-0">
             {/* Operator / Viewer Role Toggle Pill */}
