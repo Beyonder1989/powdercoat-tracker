@@ -176,12 +176,12 @@ export const fetchJobs = async (): Promise<PowderCoatJob[]> => {
 
 // บันทึกรับเข้างานใหม่
 export const createJob = async (
-  jobData: Omit<PowderCoatJob, 'id' | 'tracking_code' | 'created_at'>
+  jobData: Omit<PowderCoatJob, 'id' | 'tracking_code' | 'created_at'> & { tracking_code?: string }
 ): Promise<PowderCoatJob> => {
   const timestamp = Date.now();
   const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const tracking_code = `PC-${dateStr}-${randomSuffix}`;
+  const tracking_code = jobData.tracking_code || `PC-${dateStr}-${randomSuffix}`;
   const id = `job_${timestamp}_${Math.random().toString(36).substring(2, 7)}`;
   const created_at = new Date().toISOString();
 
@@ -212,6 +212,56 @@ export const createJob = async (
   const updated = [newJob, ...localJobs];
   saveLocalJobs(updated);
   return newJob;
+};
+
+// บันทึกรับเข้างานเป็นชุด (Batch Receiving: 1 ใบส่งมอบ หลายโมเดล/หลายชิ้นงาน)
+export const createBatchJobs = async (
+  jobsData: Array<Omit<PowderCoatJob, 'id' | 'tracking_code' | 'created_at'> & { tracking_code?: string }>
+): Promise<PowderCoatJob[]> => {
+  if (jobsData.length === 0) return [];
+  if (jobsData.length === 1) {
+    const single = await createJob(jobsData[0]);
+    return [single];
+  }
+
+  const timestamp = Date.now();
+  const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+  const randomBaseSuffix = Math.floor(1000 + Math.random() * 9000);
+
+  const newJobs: PowderCoatJob[] = jobsData.map((data, idx) => {
+    const itemTrackingCode = data.tracking_code || `PC-${dateStr}-${randomBaseSuffix}-${idx + 1}`;
+    const id = `job_${timestamp}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
+    const created_at = new Date().toISOString();
+
+    return {
+      priority: 'NORMAL',
+      ...data,
+      id,
+      tracking_code: itemTrackingCode,
+      created_at,
+    };
+  });
+
+  const supabase = getSupabase();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('powdercoat_jobs')
+      .insert(newJobs)
+      .select();
+
+    if (!error && data && data.length > 0) {
+      const localJobs = getLocalJobs();
+      saveLocalJobs([...(data as PowderCoatJob[]), ...localJobs]);
+      return data as PowderCoatJob[];
+    }
+    console.warn('Supabase batch insert failed, saving to local:', error?.message);
+  }
+
+  // Save to local
+  const localJobs = getLocalJobs();
+  const updated = [...newJobs, ...localJobs];
+  saveLocalJobs(updated);
+  return newJobs;
 };
 
 // อัปเดตสถานะงาน

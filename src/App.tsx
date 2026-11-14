@@ -201,8 +201,9 @@ export function App() {
         {activeTab === 'receive' && (
           isOperator ? (
             <ReceiveJobForm
-              onSuccess={(newJob) => {
-                setJobs((prev) => [newJob, ...prev]);
+              onSuccess={(newJobs) => {
+                const jobsToAdd = Array.isArray(newJobs) ? newJobs : [newJobs];
+                setJobs((prev) => [...jobsToAdd, ...prev]);
                 setActiveTab('tracker');
               }}
               onCancel={() => setActiveTab('tracker')}
