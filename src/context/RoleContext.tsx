@@ -9,7 +9,9 @@ interface RoleContextType {
   lockToViewer: () => void;
   updatePin: (oldPin: string, newPin: string) => { success: boolean; message?: string };
   isPinModalOpen: boolean;
-  openPinModal: (action?: () => void) => void;
+  pinModalMode: 'enter' | 'change';
+  setPinModalMode: (mode: 'enter' | 'change') => void;
+  openPinModal: (action?: () => void, initialMode?: 'enter' | 'change') => void;
   closePinModal: () => void;
 }
 
@@ -27,6 +29,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
+  const [pinModalMode, setPinModalMode] = useState<'enter' | 'change'>('enter');
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   const getStoredPin = (): string => {
@@ -72,13 +75,16 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       localStorage.setItem(PIN_STORAGE_KEY, newPin.trim());
+      setRole('OPERATOR');
+      localStorage.setItem(ROLE_STORAGE_KEY, 'OPERATOR');
       return { success: true };
     } catch (e) {
       return { success: false, message: 'เกิดข้อผิดพลาดในการบันทึก' };
     }
   };
 
-  const openPinModal = (action?: () => void) => {
+  const openPinModal = (action?: () => void, initialMode: 'enter' | 'change' = 'enter') => {
+    setPinModalMode(initialMode);
     if (action) {
       setPendingAction(() => action);
     } else {
@@ -103,6 +109,8 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lockToViewer,
         updatePin,
         isPinModalOpen,
+        pinModalMode,
+        setPinModalMode,
         openPinModal,
         closePinModal,
       }}

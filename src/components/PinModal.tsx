@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Unlock, X, KeyRound, AlertCircle, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Lock, X, KeyRound, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 import { useLanguage } from '../context/LanguageContext';
 
 export const PinModal: React.FC = () => {
-  const { isPinModalOpen, closePinModal, unlockWithPin, updatePin, isOperator, lockToViewer } = useRole();
+  const { 
+    isPinModalOpen, 
+    closePinModal, 
+    unlockWithPin, 
+    updatePin, 
+    pinModalMode, 
+    setPinModalMode 
+  } = useRole();
   const { lang, t } = useLanguage();
 
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState<boolean>(false);
 
-  // Mode: 'enter' (unlock) | 'change' (supervisor change PIN)
-  const [mode, setMode] = useState<'enter' | 'change'>('enter');
+  // Change PIN states
   const [oldPin, setOldPin] = useState<string>('');
   const [newPin, setNewPin] = useState<string>('');
+  const [confirmPin, setConfirmPin] = useState<string>('');
   const [changeSuccess, setChangeSuccess] = useState<boolean>(false);
 
   useEffect(() => {
@@ -22,9 +29,9 @@ export const PinModal: React.FC = () => {
       setPin('');
       setError(null);
       setIsShaking(false);
-      setMode('enter');
       setOldPin('');
       setNewPin('');
+      setConfirmPin('');
       setChangeSuccess(false);
     }
   }, [isPinModalOpen]);
@@ -33,7 +40,7 @@ export const PinModal: React.FC = () => {
 
   const handleKeyPress = (num: string) => {
     setError(null);
-    if (mode === 'enter') {
+    if (pinModalMode === 'enter') {
       if (pin.length < 6) {
         const next = pin + num;
         setPin(next);
@@ -55,7 +62,7 @@ export const PinModal: React.FC = () => {
 
   const handleDelete = () => {
     setError(null);
-    if (mode === 'enter') {
+    if (pinModalMode === 'enter') {
       setPin((prev) => prev.slice(0, -1));
     }
   };
@@ -65,28 +72,33 @@ export const PinModal: React.FC = () => {
     setPin('');
   };
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleChangePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'enter') {
-      const ok = unlockWithPin(pin);
-      if (!ok) {
-        setError(t.pinModalWrong);
-        setIsShaking(true);
-        setTimeout(() => setIsShaking(false), 600);
-      }
+    setError(null);
+
+    if (!oldPin) {
+      setError(lang === 'my' ? 'လက်ရှိ PIN နံပါတ် ထည့်ပါ' : 'กรุณาใส่รหัส PIN เดิม');
+      return;
+    }
+    if (!newPin || newPin.length < 4) {
+      setError(lang === 'my' ? 'PIN အသစ်သည် အနည်းဆုံး ၄ လုံး ရှိရမည်' : 'รหัส PIN ใหม่ต้องมีอย่างน้อย 4 หลัก');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setError(lang === 'my' ? 'PIN အသစ် ၂ ကြိမ် မတူညီပါ' : 'รหัส PIN ใหม่และการยืนยันไม่ตรงกัน');
+      return;
+    }
+
+    const res = updatePin(oldPin, newPin);
+    if (res.success) {
+      setChangeSuccess(true);
+      setTimeout(() => {
+        setPinModalMode('enter');
+        setChangeSuccess(false);
+        closePinModal();
+      }, 1500);
     } else {
-      // Change PIN mode
-      const res = updatePin(oldPin, newPin);
-      if (res.success) {
-        setChangeSuccess(true);
-        setTimeout(() => {
-          setMode('enter');
-          setChangeSuccess(false);
-          closePinModal();
-        }, 1200);
-      } else {
-        setError(res.message || 'รหัสผ่านเดิมไม่ถูกต้อง');
-      }
+      setError(res.message || (lang === 'my' ? 'မူလ PIN မမှန်ပါ' : 'รหัสผ่านเดิมไม่ถูกต้อง'));
     }
   };
 
@@ -100,9 +112,15 @@ export const PinModal: React.FC = () => {
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Lock className="w-5 h-5" />
+            {pinModalMode === 'change' ? (
+              <KeyRound className="w-5 h-5 text-orange-200" />
+            ) : (
+              <Lock className="w-5 h-5" />
+            )}
             <h3 className="font-bold text-sm sm:text-base">
-              {mode === 'enter' ? t.pinModalTitle : t.pinChangeTitle}
+              {pinModalMode === 'enter' 
+                ? t.pinModalTitle 
+                : (lang === 'my' ? 'PIN နံပါတ် အသစ်သတ်မှတ်ခြင်း' : 'ตั้งค่ารหัส PIN ใหม่')}
             </h3>
           </div>
           <button
@@ -115,7 +133,7 @@ export const PinModal: React.FC = () => {
 
         {/* Body */}
         <div className="p-6 space-y-5">
-          {mode === 'enter' ? (
+          {pinModalMode === 'enter' ? (
             <>
               <div className="text-center space-y-1">
                 <p className="text-xs text-slate-300">{t.pinModalSubtitle}</p>
@@ -186,78 +204,118 @@ export const PinModal: React.FC = () => {
                 </button>
               </div>
 
-              {/* Supervisor Change PIN link */}
-              {isOperator && (
-                <div className="pt-2 text-center border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setMode('change')}
-                    className="text-xs text-orange-400 hover:underline flex items-center justify-center space-x-1 mx-auto"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>{t.pinChangeBtn}</span>
-                  </button>
-                </div>
-              )}
+              {/* ปุ่มสลับไปโหมดเปลี่ยนรหัส PIN (เปิดให้คลิกเปลี่ยนได้ตลอดเวลา) */}
+              <div className="pt-3 text-center border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setPinModalMode('change');
+                  }}
+                  className="text-xs text-orange-400 hover:text-orange-300 hover:underline inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>
+                    {lang === 'my' 
+                      ? '⚙️ PIN နံပါတ် ပြောင်းလဲရန် နှိပ်ပါ' 
+                      : '⚙️ ต้องการเปลี่ยนรหัส PIN? แตะที่นี่'}
+                  </span>
+                </button>
+              </div>
             </>
           ) : (
             /* Change PIN form */
-            <form onSubmit={handleManualSubmit} className="space-y-4">
+            <form onSubmit={handleChangePinSubmit} className="space-y-4">
               {changeSuccess ? (
-                <div className="p-4 bg-emerald-950/80 border border-emerald-800 rounded-xl text-emerald-300 text-xs text-center space-y-1">
-                  <CheckCircle2 className="w-6 h-6 mx-auto text-emerald-400" />
-                  <p className="font-semibold">{t.pinChangeSuccess}</p>
+                <div className="p-5 bg-emerald-950/80 border border-emerald-800 rounded-2xl text-emerald-300 text-center space-y-2">
+                  <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 animate-bounce" />
+                  <p className="font-bold text-sm">
+                    {lang === 'my' ? 'PIN နံပါတ် အောင်မြင်စွာ ပြောင်းလဲပြီးပါပြီ' : 'เปลี่ยนรหัส PIN สำเร็จเรียบร้อยแล้ว!'}
+                  </p>
+                  <p className="text-xs text-emerald-400/80">
+                    {lang === 'my' ? 'စနစ်သည် အလိုအလျောက် ပွင့်သွားမည်ဖြစ်သည်' : 'ปลดล็อกสิทธิ์ช่างพ่นสีให้อัตโนมัติ'}
+                  </p>
                 </div>
               ) : (
                 <>
+                  <div className="text-center text-xs text-slate-400 pb-1">
+                    {lang === 'my' 
+                      ? 'မူလ PIN နံပါတ်ကို ထည့်သွင်းပြီး အသစ်သတ်မှတ်ပါ' 
+                      : 'กรอกรหัสเดิมเพื่อยืนยันสิทธิ์ แล้วตั้งรหัสใหม่ตามต้องการ'}
+                  </div>
+
                   {error && (
-                    <div className="p-2.5 bg-rose-950/80 border border-rose-800 rounded-xl text-rose-300 text-xs flex items-center space-x-1.5">
+                    <div className="p-2.5 bg-rose-950/80 border border-rose-800 rounded-xl text-rose-300 text-xs flex items-center justify-center space-x-1.5 text-center">
                       <AlertCircle className="w-4 h-4 shrink-0" />
                       <span>{error}</span>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">รหัส PIN ปัจจุบัน</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {lang === 'my' ? 'လက်ရှိ PIN နံပါတ်' : '1. รหัส PIN ปัจจุบัน'}
+                    </label>
                     <input
                       type="password"
                       inputMode="numeric"
                       maxLength={6}
                       required
-                      placeholder="เช่น 1234"
+                      placeholder="ใส่รหัสเดิม (ค่าเริ่มต้น 1234)"
                       value={oldPin}
                       onChange={(e) => setOldPin(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">รหัส PIN ใหม่ (4-6 หลัก)</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {lang === 'my' ? 'PIN အသစ် (၄ - ၆ လုံး)' : '2. รหัส PIN ใหม่ (4-6 หลัก)'}
+                    </label>
                     <input
                       type="password"
                       inputMode="numeric"
                       maxLength={6}
                       required
-                      placeholder="ตั้งรหัสใหม่ 4 หลัก"
+                      placeholder="ตั้งรหัสใหม่ เช่น 8888"
                       value={newPin}
                       onChange={(e) => setNewPin(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {lang === 'my' ? 'PIN အသစ် အတည်ပြုပါ' : '3. ยืนยันรหัส PIN ใหม่อีกครั้ง'}
+                    </label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      required
+                      placeholder="พิมพ์รหัสใหม่อีกครั้งให้ตรงกัน"
+                      value={confirmPin}
+                      onChange={(e) => setConfirmPin(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
                     />
                   </div>
 
                   <div className="flex items-center space-x-2 pt-2">
                     <button
                       type="button"
-                      onClick={() => setMode('enter')}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:bg-slate-800 text-xs"
+                      onClick={() => {
+                        setError(null);
+                        setPinModalMode('enter');
+                      }}
+                      className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-semibold transition-colors flex items-center justify-center space-x-1"
                     >
-                      {t.pinModalClose}
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>{lang === 'my' ? 'နောက်သို့' : 'ย้อนกลับ'}</span>
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-semibold text-xs shadow-md shadow-orange-600/30"
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-md shadow-orange-500/30 transition-all"
                     >
-                      {t.pinModalConfirm}
+                      {lang === 'my' ? 'အတည်ပြုမည်' : 'บันทึกรหัสใหม่'}
                     </button>
                   </div>
                 </>

@@ -54,11 +54,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
             {/* Operator / Viewer Role Toggle Pill */}
             {isOperator ? (
-              <div className="flex items-center bg-emerald-950/80 border border-emerald-500/80 rounded-xl p-0.5 sm:p-1 text-xs shadow-md shadow-emerald-950/40">
+              <div className="flex items-center bg-emerald-950/80 border border-emerald-500/80 rounded-xl p-0.5 sm:p-1 text-xs shadow-md shadow-emerald-950/40 space-x-1">
                 <span className="px-1.5 sm:px-2 py-0.5 text-emerald-300 font-bold flex items-center space-x-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                   <span className="hidden md:inline">{t.modeOperator}</span>
                 </span>
+                <button
+                  type="button"
+                  onClick={() => openPinModal(undefined, 'change')}
+                  title="เปลี่ยนรหัส PIN แผนกพ่นสี"
+                  className="px-1.5 sm:px-2 py-1 rounded-lg bg-emerald-900/60 hover:bg-orange-600 text-emerald-200 hover:text-white transition-colors flex items-center space-x-1 font-semibold text-[11px] sm:text-xs"
+                >
+                  <KeyRound className="w-3 h-3 text-amber-300" />
+                  <span className="hidden sm:inline">{lang === 'my' ? 'PIN ပြောင်း' : 'เปลี่ยน PIN'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={lockToViewer}
