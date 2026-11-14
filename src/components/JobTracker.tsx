@@ -38,9 +38,11 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   // Filter & sort jobs (งานด่วนที่สุด URGENT จะลอยขึ้นบนสุดเสมอ!)
   const filteredJobs = useMemo(() => {
     const list = jobs.filter((job) => {
-      // Urgent only filter
+      // Urgent only filter (เฉพาะงานด่วนที่ยังอยู่ในแผนกพ่นสี ไม่รวมงานที่ส่งออกไปแล้ว)
       if (statusFilter === 'URGENT_ONLY') {
-        if (job.priority !== 'URGENT' && job.priority !== 'HIGH') return false;
+        if ((job.priority !== 'URGENT' && job.priority !== 'HIGH') || job.status === 'DISPATCHED_TO_PACKING') {
+          return false;
+        }
       } else if (statusFilter !== 'ALL' && job.status !== statusFilter) {
         return false;
       }
@@ -61,8 +63,15 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
       return true;
     });
 
-    // เรียงลำดับ: URGENT (3) -> HIGH (2) -> NORMAL (1) -> ตามเวลารับเข้าล่าสุด
+    // เรียงลำดับ: งานที่ยังอยู่ในแผนก (Active) ขึ้นก่อนงานที่ส่งมอบออกไปแล้ว
+    // จากนั้นเรียงตามความด่วน URGENT (3) -> HIGH (2) -> NORMAL (1) -> ตามเวลารับเข้าล่าสุด
     return list.sort((a, b) => {
+      const isDispatchedA = a.status === 'DISPATCHED_TO_PACKING';
+      const isDispatchedB = b.status === 'DISPATCHED_TO_PACKING';
+      if (isDispatchedA !== isDispatchedB) {
+        return isDispatchedA ? 1 : -1;
+      }
+
       const getPriorityScore = (p?: JobPriority) => {
         if (p === 'URGENT') return 3;
         if (p === 'HIGH') return 2;
@@ -133,7 +142,10 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
     }
   };
 
-  const urgentCount = jobs.filter((j) => j.priority === 'URGENT' || j.priority === 'HIGH').length;
+  // นับเฉพาะงานด่วนที่ยังอยู่ในแผนกพ่นสี (ไม่รวมงานที่ส่งมอบออกไปแล้ว)
+  const urgentCount = jobs.filter(
+    (j) => (j.priority === 'URGENT' || j.priority === 'HIGH') && j.status !== 'DISPATCHED_TO_PACKING'
+  ).length;
 
   return (
     <div className="space-y-6 pb-12 w-full max-w-full min-w-0">
