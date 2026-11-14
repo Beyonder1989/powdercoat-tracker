@@ -26,7 +26,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
   const [customSenderName, setCustomSenderName] = useState<string>('');
 
   const [containerNo, setContainerNo] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number | ''>(1);
   
   // Receivers in Powder Coat
   const [receiverName, setReceiverName] = useState<string>(POWDER_COAT_RECEIVERS[0]?.displayName || 'สุรวุฒิ กระโพธิ์ (ปอนด์) (600096)');
@@ -422,17 +422,68 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
 
               {/* จำนวนชิ้น */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  {t.labelQuantity} <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 flex items-center justify-between">
+                  <span>{t.labelQuantity} <span className="text-rose-400">*</span></span>
+                  <span className="text-emerald-400 font-bold">{quantity || 0} {t.pieceUnit}</span>
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-semibold"
-                />
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => (typeof prev === 'number' && prev > 1 ? prev - 1 : 1))}
+                    className="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-white font-bold text-lg flex items-center justify-center border border-slate-700 shadow shrink-0"
+                    title="ลด 1"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    placeholder="ใส่จำนวน..."
+                    value={quantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setQuantity('');
+                      } else {
+                        const parsed = parseInt(val, 10);
+                        setQuantity(isNaN(parsed) ? '' : Math.max(1, parsed));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!quantity || quantity < 1) {
+                        setQuantity(1);
+                      }
+                    }}
+                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base font-bold font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => (typeof prev === 'number' ? prev + 1 : 2))}
+                    className="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-white font-bold text-lg flex items-center justify-center border border-slate-700 shadow shrink-0"
+                    title="เพิ่ม 1"
+                  >
+                    +
+                  </button>
+                </div>
+                {/* ปุ่มด่วนสำหรับจำนวนชิ้นยอดนิยม */}
+                <div className="flex items-center space-x-1.5 mt-2">
+                  <span className="text-[10px] text-slate-400 mr-1">ปุ่มด่วน:</span>
+                  {[1, 2, 4, 5, 10, 20].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setQuantity(num)}
+                      className={`px-2 py-0.5 rounded text-xs font-mono font-bold border transition-colors ${
+                        quantity === num
+                          ? 'bg-orange-500 text-white border-orange-400'
+                          : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
