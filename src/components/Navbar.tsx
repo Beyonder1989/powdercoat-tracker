@@ -1,12 +1,12 @@
 import React from 'react';
-import { Layers, PlusCircle, PackageCheck, Paintbrush, Lock, Unlock, Eye, ShieldCheck, KeyRound, BarChart3 } from 'lucide-react';
+import { Layers, PlusCircle, PackageCheck, Paintbrush, Lock, Unlock, Eye, ShieldCheck, KeyRound, BarChart3, FileSpreadsheet } from 'lucide-react';
 import { JobStatus } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
 
 interface NavbarProps {
-  activeTab: 'receive' | 'tracker' | 'packing' | 'analytics';
-  setActiveTab: (tab: 'receive' | 'tracker' | 'packing' | 'analytics') => void;
+  activeTab: 'receive' | 'tracker' | 'packing' | 'analytics' | 'plan';
+  setActiveTab: (tab: 'receive' | 'tracker' | 'packing' | 'analytics' | 'plan') => void;
   counts: Record<JobStatus, number>;
 }
 
@@ -162,6 +162,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>{t.tabReceive}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('plan')}
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors shrink-0 ${
+              activeTab === 'plan'
+                ? 'bg-slate-800 text-cyan-400 border border-slate-700'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
+            <span>{lang === 'my' ? 'ကွန်တိန်နာ အစီအစဉ်' : 'แผนผลิตตู้สินค้า'}</span>
           </button>
 
           <button

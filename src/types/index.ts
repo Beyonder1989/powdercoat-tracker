@@ -45,3 +45,33 @@ export interface PowderCoatJob {
 export interface MasterModelItem {
   partNo: string;
 }
+
+export interface PlanItem {
+  id: string;
+  modelPartNo: string;
+  planQty: number;
+  pcStatus?: string;
+  note?: string;
+  isClosed?: boolean;
+  closedAt?: string;
+  closedBy?: string;
+}
+
+export interface ContainerPlan {
+  id: string;
+  name: string;
+  date?: string;
+  items: PlanItem[];
+  isActive?: boolean;
+}
+
+export interface CrossContainerMatch {
+  modelPartNo: string;
+  currentContainer: string;
+  currentQty: number;
+  futureMatches: Array<{
+    containerName: string;
+    containerDate?: string;
+    qty: number;
+  }>;
+}

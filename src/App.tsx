@@ -7,6 +7,7 @@ import { DispatchModal, DispatchData } from './components/DispatchModal';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { PinModal } from './components/PinModal';
 import { StartCoatingModal } from './components/StartCoatingModal';
+import { ContainerPlanDashboard } from './components/ContainerPlanDashboard';
 import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
 import { PowderCoatJob, JobStatus, JobPriority, CoatingType } from './types';
 import { useLanguage } from './context/LanguageContext';
@@ -78,7 +79,7 @@ const INITIAL_DEMO_JOBS: PowderCoatJob[] = [
 export function App() {
   const { lang, t } = useLanguage();
   const { isOperator, openPinModal } = useRole();
-  const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing' | 'analytics'>('tracker');
+  const [activeTab, setActiveTab] = useState<'receive' | 'tracker' | 'packing' | 'analytics' | 'plan'>('tracker');
   const [jobs, setJobs] = useState<PowderCoatJob[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedJob, setSelectedJob] = useState<PowderCoatJob | null>(null);
@@ -289,6 +290,11 @@ export function App() {
             jobs={jobs}
             onSelectJob={setSelectedJob}
           />
+        )}
+
+        {/* Tab 5: แผนการผลิตตามตู้สินค้า (Production Plan & Container Reconciliation) */}
+        {activeTab === 'plan' && (
+          <ContainerPlanDashboard jobs={jobs} />
         )}
       </main>
 
