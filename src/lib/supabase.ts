@@ -158,20 +158,21 @@ export const saveLocalJobs = (jobs: PowderCoatJob[]) => {
 export const fetchJobs = async (): Promise<PowderCoatJob[]> => {
   const supabase = getSupabase();
   if (!supabase) {
-    return getLocalJobs();
+    return getLocalJobs().filter((j) => !j.id.startsWith('SYSTEM_'));
   }
 
   const { data, error } = await supabase
     .from('powdercoat_jobs')
     .select('*')
+    .not('id', 'like', 'SYSTEM_%')
     .order('created_at', { ascending: false });
 
   if (error) {
     console.warn('Supabase fetch failed, falling back to local:', error.message);
-    return getLocalJobs();
+    return getLocalJobs().filter((j) => !j.id.startsWith('SYSTEM_'));
   }
 
-  return data as PowderCoatJob[];
+  return (data as PowderCoatJob[]).filter((j) => !j.id.startsWith('SYSTEM_'));
 };
 
 // บันทึกรับเข้างานใหม่
@@ -387,6 +388,95 @@ export const deleteJob = async (id: string): Promise<boolean> => {
   }
 
   return true;
+};
+
+// ดึงรหัส PIN กลางของแผนกพ่นสีจาก Supabase (Real-time Cloud Sync)
+export const fetchCentralPin = async (): Promise<string> => {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return localStorage.getItem('powdercoat_dept_pin') || '1234';
+  }
+
+  try {
+    // 1. ลองดึงจาก powdercoat_settings ถ้ามี
+    const { data: settingsData, error: settingsError } = await supabase
+      .from('powdercoat_settings')
+      .select('value')
+      .eq('key', 'dept_pin')
+      .maybeSingle();
+
+    if (!settingsError && settingsData && settingsData.value) {
+      localStorage.setItem('powdercoat_dept_pin', settingsData.value);
+      return settingsData.value;
+    }
+  } catch {
+    // proceed to row-based sync
+  }
+
+  try {
+    // 2. ดึงจากแถวบันทึกกลางใน powdercoat_jobs (รองรับทุกเครื่องแบบเรียลไทม์)
+    const { data: configJob, error: configError } = await supabase
+      .from('powdercoat_jobs')
+      .select('notes')
+      .eq('id', 'SYSTEM_CONFIG_DEPT_PIN')
+      .maybeSingle();
+
+    if (!configError && configJob && configJob.notes) {
+      localStorage.setItem('powdercoat_dept_pin', configJob.notes);
+      return configJob.notes;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch central pin from Supabase:', e);
+  }
+
+  return localStorage.getItem('powdercoat_dept_pin') || '1234';
+};
+
+// อัปเดตรหัส PIN กลางไปยัง Supabase (ทุกคน ทุกเครื่อง ทุกเบราว์เซอร์จะใช้รหัสเดียวกันทันที)
+export const updateCentralPin = async (newPin: string): Promise<boolean> => {
+  const cleanPin = newPin.trim();
+  localStorage.setItem('powdercoat_dept_pin', cleanPin);
+
+  const supabase = getSupabase();
+  if (!supabase) return true;
+
+  // 1. บันทึกลง powdercoat_settings ถ้าตารางมีอยู่
+  try {
+    await supabase
+      .from('powdercoat_settings')
+      .upsert({ key: 'dept_pin', value: cleanPin, updated_at: new Date().toISOString() });
+  } catch {
+    // ignore
+  }
+
+  // 2. บันทึกลง SYSTEM_CONFIG_DEPT_PIN ใน powdercoat_jobs เพื่อการันตีว่าซิงค์ติด 100% ทุกเครื่อง
+  try {
+    const { error } = await supabase
+      .from('powdercoat_jobs')
+      .upsert({
+        id: 'SYSTEM_CONFIG_DEPT_PIN',
+        tracking_code: 'SYS-CONFIG-PIN',
+        sender_department: 'SYSTEM',
+        model_part_no: 'SYSTEM_PIN',
+        part_name: 'ระบบรหัสผ่านกลาง',
+        sender_name: 'SYSTEM',
+        container_no: 'SYS',
+        quantity: 1,
+        status: 'RECEIVED',
+        notes: cleanPin,
+        receiver_name: 'SYSTEM',
+        created_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('Failed to upsert central pin to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Error updating central pin:', e);
+    return false;
+  }
 };
 
 // คำสั่ง SQL สำหรับ Supabase Editor

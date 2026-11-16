@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { fetchCentralPin, updateCentralPin } from '../lib/supabase';
 
 export type UserRole = 'VIEWER' | 'OPERATOR';
 
 interface RoleContextType {
   role: UserRole;
   isOperator: boolean;
-  unlockWithPin: (pin: string) => boolean;
+  unlockWithPin: (pin: string) => Promise<boolean>;
   lockToViewer: () => void;
-  updatePin: (oldPin: string, newPin: string) => { success: boolean; message?: string };
+  updatePin: (oldPin: string, newPin: string) => Promise<{ success: boolean; message?: string }>;
   isPinModalOpen: boolean;
   pinModalMode: 'enter' | 'change';
   setPinModalMode: (mode: 'enter' | 'change') => void;
@@ -28,17 +29,36 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved === 'OPERATOR' ? 'OPERATOR' : 'VIEWER';
   });
 
+  const [centralPin, setCentralPin] = useState<string>(() => {
+    return localStorage.getItem(PIN_STORAGE_KEY) || DEFAULT_PIN;
+  });
+
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
   const [pinModalMode, setPinModalMode] = useState<'enter' | 'change'>('enter');
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
-  const getStoredPin = (): string => {
-    return localStorage.getItem(PIN_STORAGE_KEY) || DEFAULT_PIN;
-  };
+  // ดึงรหัส PIN ล่าสุดจาก Supabase เสมอเพื่อให้ทุกอุปกรณ์ ทุกคน ใช้รหัสตัวเดียวกันจริง
+  const syncCentralPin = useCallback(async (): Promise<string> => {
+    try {
+      const pin = await fetchCentralPin();
+      if (pin) {
+        setCentralPin(pin);
+        return pin;
+      }
+    } catch (e) {
+      console.warn('Failed to sync central pin from Supabase:', e);
+    }
+    return centralPin;
+  }, [centralPin]);
 
-  const unlockWithPin = (pin: string): boolean => {
-    const currentPin = getStoredPin();
-    if (pin.trim() === currentPin.trim()) {
+  useEffect(() => {
+    syncCentralPin();
+  }, [syncCentralPin]);
+
+  const unlockWithPin = async (inputPin: string): Promise<boolean> => {
+    // ดึงรหัสล่าสุดจาก Cloud ก่อนตรวจสอบเสมอ ป้องกันการใช้รหัสเก่าที่ถูกเปลี่ยนไปแล้ว
+    const latestPin = await syncCentralPin();
+    if (inputPin.trim() === latestPin.trim()) {
       setRole('OPERATOR');
       try {
         localStorage.setItem(ROLE_STORAGE_KEY, 'OPERATOR');
@@ -64,27 +84,33 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updatePin = (oldPin: string, newPin: string): { success: boolean; message?: string } => {
-    const currentPin = getStoredPin();
-    if (oldPin.trim() !== currentPin.trim()) {
-      return { success: false, message: 'รหัสเดิมไม่ถูกต้อง' };
+  const updatePin = async (oldPin: string, newPin: string): Promise<{ success: boolean; message?: string }> => {
+    // ตรวจสอบรหัสเดิมเทียบกับรหัสกลางใน Cloud ล่าสุด
+    const latestPin = await syncCentralPin();
+    if (oldPin.trim() !== latestPin.trim()) {
+      return { success: false, message: 'รหัสเดิมไม่ถูกต้อง (รหัสกลางล่าสุดไม่ใช่รหัสนี้)' };
     }
     if (!newPin || newPin.trim().length < 4) {
       return { success: false, message: 'รหัสใหม่ต้องมีอย่างน้อย 4 หลัก' };
     }
 
-    try {
-      localStorage.setItem(PIN_STORAGE_KEY, newPin.trim());
-      setRole('OPERATOR');
-      localStorage.setItem(ROLE_STORAGE_KEY, 'OPERATOR');
-      return { success: true };
-    } catch (e) {
-      return { success: false, message: 'เกิดข้อผิดพลาดในการบันทึก' };
+    const cleanPin = newPin.trim();
+    setCentralPin(cleanPin);
+    setRole('OPERATOR');
+    localStorage.setItem(ROLE_STORAGE_KEY, 'OPERATOR');
+
+    // บันทึกลง Cloud กลาง Supabase เพื่อให้อุปกรณ์ของทุกคนอัปเดตเป็นรหัสนี้ทันที
+    const ok = await updateCentralPin(cleanPin);
+    if (!ok) {
+      return { success: false, message: 'ไม่สามารถบันทึกรหัสใหม่ไปยังระบบกลางได้ กรุณาตรวจสอบอินเทอร์เน็ต' };
     }
+
+    return { success: true };
   };
 
   const openPinModal = (action?: () => void, initialMode: 'enter' | 'change' = 'enter') => {
     setPinModalMode(initialMode);
+    syncCentralPin(); // ดึงรหัสล่าสุดจาก Cloud ทุกครั้งที่เปิดหน้าต่าง PIN
     if (action) {
       setPendingAction(() => action);
     } else {

@@ -38,7 +38,7 @@ export const PinModal: React.FC = () => {
 
   if (!isPinModalOpen) return null;
 
-  const handleKeyPress = (num: string) => {
+  const handleKeyPress = async (num: string) => {
     setError(null);
     if (pinModalMode === 'enter') {
       if (pin.length < 6) {
@@ -46,7 +46,7 @@ export const PinModal: React.FC = () => {
         setPin(next);
         if (next.length === 4) {
           // Auto submit at 4 digits
-          const ok = unlockWithPin(next);
+          const ok = await unlockWithPin(next);
           if (!ok) {
             setError(t.pinModalWrong);
             setIsShaking(true);
@@ -72,7 +72,7 @@ export const PinModal: React.FC = () => {
     setPin('');
   };
 
-  const handleChangePinSubmit = (e: React.FormEvent) => {
+  const handleChangePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -89,7 +89,7 @@ export const PinModal: React.FC = () => {
       return;
     }
 
-    const res = updatePin(oldPin, newPin);
+    const res = await updatePin(oldPin, newPin);
     if (res.success) {
       setChangeSuccess(true);
       setTimeout(() => {
