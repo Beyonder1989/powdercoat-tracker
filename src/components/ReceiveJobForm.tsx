@@ -2,12 +2,14 @@ import React, { useState, useRef, useMemo } from 'react';
 import { 
   Camera, CheckCircle2, AlertCircle, X, Search, ChevronDown, 
   Calendar, Clock, User, Package, Building2, Hash, FileText, 
-  Flame, Zap, Plus, Trash2, Layers
+  Flame, Zap, Plus, Trash2, Layers, Sparkles, Box, Edit3
 } from 'lucide-react';
 import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO } from '../data/masterData';
 import { getEmployeesByDepartment, POWDER_COAT_RECEIVERS } from '../data/employeeData';
 import { uploadEvidenceImage, createBatchJobs } from '../lib/supabase';
-import { PowderCoatJob, JobPriority } from '../types';
+import { PowderCoatJob, JobPriority, PlanItem } from '../types';
+import { INITIAL_CONTAINER_PLANS } from '../data/initialContainerPlans';
+import { getActiveContainerId } from '../services/containerPlanService';
 import { useLanguage } from '../context/LanguageContext';
 
 export interface ReceiveJobItem {
@@ -46,7 +48,47 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
   const [senderName, setSenderName] = useState<string>(initialSenders[0]?.displayName || '');
   const [isCustomSender, setIsCustomSender] = useState<boolean>(false);
   const [customSenderName, setCustomSenderName] = useState<string>('');
-  const [containerNo, setContainerNo] = useState<string>('');
+
+  // ตู้สินค้าจากแผนการผลิต (Production Plan Container)
+  const initialActiveContainerId = useMemo(() => getActiveContainerId(), []);
+  const defaultContainer = useMemo(() => {
+    return (
+      INITIAL_CONTAINER_PLANS.find((p) => p.id === initialActiveContainerId) ||
+      INITIAL_CONTAINER_PLANS.find((p) => p.id === 'EL_SALVADOR') ||
+      INITIAL_CONTAINER_PLANS[0]
+    );
+  }, [initialActiveContainerId]);
+
+  const [containerMode, setContainerMode] = useState<'PLAN' | 'CUSTOM'>('PLAN');
+  const [selectedPlanContainerId, setSelectedPlanContainerId] = useState<string>(
+    defaultContainer ? defaultContainer.id : 'EL_SALVADOR'
+  );
+  const [containerNo, setContainerNo] = useState<string>(
+    defaultContainer ? defaultContainer.name : 'EL SALVADOR'
+  );
+  const [customContainerText, setCustomContainerText] = useState<string>('');
+
+  // ดึงแผนงานของตู้ที่เลือก (เพื่อนำมาใช้แนะนำโมเดลในฟอร์ม)
+  const currentPlanContainer = useMemo(() => {
+    if (containerMode !== 'PLAN') return null;
+    return (
+      INITIAL_CONTAINER_PLANS.find((p) => p.id === selectedPlanContainerId) || null
+    );
+  }, [containerMode, selectedPlanContainerId]);
+
+  const handleSelectPlanContainer = (planId: string) => {
+    if (planId === '__custom__') {
+      setContainerMode('CUSTOM');
+      setContainerNo(customContainerText);
+      return;
+    }
+    const found = INITIAL_CONTAINER_PLANS.find((p) => p.id === planId);
+    if (found) {
+      setContainerMode('PLAN');
+      setSelectedPlanContainerId(found.id);
+      setContainerNo(found.name);
+    }
+  };
 
   // 2. รายการชิ้นงานในใบนี้ (รองรับหลายรายการ / หลายโมเดล)
   const [items, setItems] = useState<ReceiveJobItem[]>([createInitialItem()]);
@@ -357,22 +399,116 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                 )}
               </div>
 
-              {/* หมายเลขตู้สินค้า / รถเข็น / ล็อต */}
+              {/* หมายเลขตู้สินค้า / ลังใส่ชิ้นงาน (เชื่อมโยงกับแผนการผลิต Planning) */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  {t.labelContainerNo} <span className="text-rose-400">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder={t.placeholderContainerNo}
-                    value={containerNo}
-                    onChange={(e) => setContainerNo(e.target.value)}
-                    className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-medium"
-                  />
-                  <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+                    <Box className="w-4 h-4 text-orange-400" />
+                    <span>{t.labelContainerNo}</span>
+                    <span className="text-rose-400">*</span>
+                  </label>
+
+                  {containerMode === 'PLAN' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContainerMode('CUSTOM');
+                        setContainerNo(customContainerText);
+                      }}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center space-x-1 hover:underline font-medium"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>{lang === 'my' ? 'စိတ်ကြိုက်ထည့်မည်' : 'ระบุตู้/ลังอื่นเอง'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContainerMode('PLAN');
+                        const p = INITIAL_CONTAINER_PLANS.find((x) => x.id === selectedPlanContainerId) || INITIAL_CONTAINER_PLANS[0];
+                        setContainerNo(p.name);
+                      }}
+                      className="text-[11px] text-orange-400 hover:text-orange-300 flex items-center space-x-1 hover:underline font-medium"
+                    >
+                      <Layers className="w-3 h-3" />
+                      <span>{lang === 'my' ? 'အစီအစဉ်မှရွေးမည်' : 'เลือกจากแผนผลิต'}</span>
+                    </button>
+                  )}
                 </div>
+
+                {containerMode === 'PLAN' ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <select
+                        value={selectedPlanContainerId}
+                        onChange={(e) => handleSelectPlanContainer(e.target.value)}
+                        className="w-full bg-slate-800/90 border border-orange-500/50 rounded-xl pl-10 pr-9 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-semibold appearance-none cursor-pointer"
+                      >
+                        {INITIAL_CONTAINER_PLANS.map((plan) => (
+                          <option key={plan.id} value={plan.id} className="bg-slate-900 text-white py-1">
+                            {plan.id === 'EL_SALVADOR' ? '⭐ ' : '📦 '}
+                            {plan.name} ({plan.items.length} รายการตามแผน)
+                          </option>
+                        ))}
+                        <option value="__custom__" className="bg-slate-900 text-amber-300 font-semibold">
+                          ✏️ + ระบุตู้/ลังสินค้าอื่นด้วยตนเอง (นอกแผน)
+                        </option>
+                      </select>
+                      <Box className="w-4 h-4 text-orange-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                    </div>
+
+                    {/* Quick selection chips for top containers */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <span className="text-[10px] text-slate-400 font-medium mr-1">
+                        {lang === 'my' ? 'အမြန်ရွေးချယ်:' : 'ตู้ด่วน:'}
+                      </span>
+                      {[
+                        { id: 'EL_SALVADOR', label: '⭐ EL SALVADOR' },
+                        { id: 'KENYA', label: 'KENYA' },
+                        { id: 'COSTA_RICA', label: 'COSTA RICA' },
+                        { id: 'SOUTH_AFICA', label: 'SOUTH AFRICA' },
+                        { id: 'งานผลิตในประเทศ', label: '🇹🇭 ในประเทศ' },
+                      ].map((c) => {
+                        const isSelected = selectedPlanContainerId === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => handleSelectPlanContainer(c.id)}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all ${
+                              isSelected
+                                ? 'bg-orange-500 text-white font-bold shadow-sm shadow-orange-500/30'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/80'
+                            }`}
+                          >
+                            {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder={t.placeholderContainerNo}
+                        value={containerNo}
+                        onChange={(e) => {
+                          setContainerNo(e.target.value);
+                          setCustomContainerText(e.target.value);
+                        }}
+                        className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-medium"
+                      />
+                      <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    </div>
+                    <p className="text-[11px] text-amber-400/90">
+                      * กำลังระบุตู้/ลังเองด้วยตนเอง (หากเป็นตู้ส่งออกตามแผน แนะนำให้กด "เลือกจากแผนผลิต")
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -546,6 +682,8 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                   item={item}
                   index={index}
                   totalItems={items.length}
+                  planItems={currentPlanContainer?.items || []}
+                  planContainerName={currentPlanContainer?.name}
                   onUpdate={(updates) => handleUpdateItem(item.id, updates)}
                   onRemove={() => handleRemoveItem(item.id)}
                   lang={lang}
@@ -690,6 +828,8 @@ interface ItemCardRowProps {
   item: ReceiveJobItem;
   index: number;
   totalItems: number;
+  planItems?: PlanItem[];
+  planContainerName?: string;
   onUpdate: (updates: Partial<ReceiveJobItem>) => void;
   onRemove: () => void;
   lang: string;
@@ -700,11 +840,21 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
   item,
   index,
   totalItems,
+  planItems = [],
+  planContainerName,
   onUpdate,
   onRemove,
   lang,
   t,
 }) => {
+  // กรองโมเดลในตู้ตามคำค้นหา
+  const matchedPlanItems = useMemo(() => {
+    if (!planItems || planItems.length === 0) return [];
+    if (!item.modelSearch) return planItems;
+    const q = item.modelSearch.toLowerCase();
+    return planItems.filter((p) => p.modelPartNo.toLowerCase().includes(q));
+  }, [planItems, item.modelSearch]);
+
   const filteredModels = useMemo(() => {
     if (!item.modelSearch) return MODELS_PART_NO.slice(0, 50);
     const q = item.modelSearch.toLowerCase();
@@ -744,11 +894,19 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
 
       {/* Inputs: Model, Part Name, Quantity */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Model / Part No. (Combobox ค้นหาได้จาก 2,000+ รายการ) */}
+        {/* Model / Part No. (Combobox ค้นหาได้จากแผนผลิตตู้ หรือ 2,000+ รายการ) */}
         <div className="relative">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-            {t.labelModelPartNo} <span className="text-rose-400">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              {t.labelModelPartNo} <span className="text-rose-400">*</span>
+            </label>
+            {planContainerName && (
+              <span className="text-[10px] text-orange-300/90 font-medium">
+                ตู้: {planContainerName}
+              </span>
+            )}
+          </div>
+
           <div className="relative">
             <input
               type="text"
@@ -780,9 +938,13 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
 
           {/* Dropdown list */}
           {item.isModelDropdownOpen && (
-            <div className="absolute z-30 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
-              <div className="p-2 text-xs text-slate-400 border-b border-slate-800 flex justify-between bg-slate-950">
-                <span>พบ {filteredModels.length} รายการ</span>
+            <div className="absolute z-30 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-72 overflow-y-auto">
+              <div className="p-2 text-xs text-slate-400 border-b border-slate-800 flex justify-between bg-slate-950 sticky top-0 z-10">
+                <span>
+                  {matchedPlanItems.length > 0
+                    ? `โมเดลในแผนตู้: ${matchedPlanItems.length} รายการ`
+                    : `พบ ${filteredModels.length} รายการ`}
+                </span>
                 <button
                   type="button"
                   onClick={() => onUpdate({ isModelDropdownOpen: false })}
@@ -791,28 +953,76 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
                   ปิด
                 </button>
               </div>
-              {filteredModels.length > 0 ? (
-                filteredModels.map((m) => (
-                  <div
-                    key={m}
-                    onClick={() => {
-                      onUpdate({
-                        modelPartNo: m,
-                        modelSearch: m,
-                        isModelDropdownOpen: false,
-                      });
-                    }}
-                    className="px-3.5 py-2 text-xs text-slate-200 hover:bg-orange-600/30 hover:text-orange-300 cursor-pointer transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-mono">{m}</span>
-                    {item.modelPartNo === m && <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />}
+
+              {/* 🌟 1. โมเดลตามแผนผลิตของตู้สินค้าที่เลือก */}
+              {matchedPlanItems.length > 0 && (
+                <div>
+                  <div className="bg-orange-950/50 border-b border-orange-500/30 px-3 py-1.5 text-[11px] font-bold text-orange-300 flex items-center justify-between sticky top-8 z-10">
+                    <span className="flex items-center space-x-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                      <span>รายการตามแผนตู้ {planContainerName}</span>
+                    </span>
+                    <span className="text-[10px] text-orange-400/80 font-normal">คลิกเลือกพร้อมตั้งยอด</span>
                   </div>
-                ))
-              ) : (
+                  {matchedPlanItems.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        onUpdate({
+                          modelPartNo: p.modelPartNo,
+                          modelSearch: p.modelPartNo,
+                          isModelDropdownOpen: false,
+                          quantity: item.quantity === 1 || !item.quantity ? p.planQty : item.quantity,
+                        });
+                      }}
+                      className="px-3.5 py-2 text-xs text-slate-100 hover:bg-orange-500/20 hover:text-orange-200 cursor-pointer transition-colors flex items-center justify-between border-b border-slate-800/60 bg-orange-950/15"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono font-bold text-orange-300">{p.modelPartNo}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/40">
+                          เป้า: {p.planQty} ชิ้น
+                        </span>
+                        {item.modelPartNo === p.modelPartNo && (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 2. โมเดลทั้งหมดในระบบ (Master Catalog) */}
+              {filteredModels.length > 0 ? (
+                <div>
+                  {matchedPlanItems.length > 0 && (
+                    <div className="bg-slate-950 px-3 py-1.5 text-[10px] font-semibold text-slate-400 border-b border-slate-800">
+                      โมเดลทั้งหมดในระบบ (Master Catalog)
+                    </div>
+                  )}
+                  {filteredModels.map((m) => (
+                    <div
+                      key={m}
+                      onClick={() => {
+                        onUpdate({
+                          modelPartNo: m,
+                          modelSearch: m,
+                          isModelDropdownOpen: false,
+                        });
+                      }}
+                      className="px-3.5 py-2 text-xs text-slate-200 hover:bg-orange-600/30 hover:text-orange-300 cursor-pointer transition-colors flex items-center justify-between"
+                    >
+                      <span className="font-mono">{m}</span>
+                      {item.modelPartNo === m && <CheckCircle2 className="w-3.5 h-3.5 text-orange-400" />}
+                    </div>
+                  ))}
+                </div>
+              ) : matchedPlanItems.length === 0 ? (
                 <div className="p-3 text-xs text-slate-400 text-center">
                   ไม่พบในรายการ แต่สามารถพิมพ์ชื่อใหม่ด้านบนได้เลย
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>

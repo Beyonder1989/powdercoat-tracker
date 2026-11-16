@@ -455,14 +455,48 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             const hasFuture = futureMatches.length > 0;
             const totalFutureQty = futureMatches.reduce((sum, f) => sum + f.qty, 0);
 
-            // คำนวณยอดที่พ่นเสร็จแล้วใน Tracker จริง
-            const actualCoatedJobs = jobs.filter(
-              (j) => j.model_part_no.toLowerCase().includes(item.modelPartNo.toLowerCase())
+            // คำนวณยอดที่พ่นเสร็จแล้วใน Tracker จริง โดยเชื่อมโยงกับตู้สินค้า
+            const normalizeStr = (str: string) =>
+              (str || '')
+                .toLowerCase()
+                .replace(/[\s\-_]/g, '')
+                .replace('elsavador', 'elsalvador')
+                .replace('costarica', 'costarica')
+                .replace('southafica', 'southafrica');
+
+            const isJobForThisContainer = (jobContainer: string) => {
+              if (!jobContainer) return false;
+              const jc = normalizeStr(jobContainer);
+              const targetName = normalizeStr(selectedContainer.name);
+              const targetId = normalizeStr(selectedContainer.id);
+              return jc === targetName || jc === targetId || jc.includes(targetName) || targetName.includes(jc);
+            };
+
+            // ค้นหางานของโมเดลนี้ที่ตรงกับตู้สินค้านี้
+            const containerJobsForModel = jobs.filter(
+              (j) =>
+                isJobForThisContainer(j.container_no) &&
+                (j.model_part_no.toLowerCase().includes(item.modelPartNo.toLowerCase()) ||
+                  item.modelPartNo.toLowerCase().includes(j.model_part_no.toLowerCase()))
             );
+
+            // ถ้ามีงานที่ระบุตู้สินค้านี้เข้ามา ให้นับเฉพาะของตู้นี้
+            // ถ้ายังไม่มีงานที่ระบุตู้ ให้ fallback นับโมเดลเดียวกันทั้งหมด
+            const hasAnyTaggedForContainer = jobs.some((j) => isJobForThisContainer(j.container_no));
+            const actualCoatedJobs = hasAnyTaggedForContainer
+              ? containerJobsForModel
+              : jobs.filter(
+                  (j) =>
+                    j.model_part_no.toLowerCase().includes(item.modelPartNo.toLowerCase()) ||
+                    item.modelPartNo.toLowerCase().includes(j.model_part_no.toLowerCase())
+                );
+
             const actualReceivedQty = actualCoatedJobs.reduce((sum, j) => sum + (j.quantity || 1), 0);
             const actualFinishedQty = actualCoatedJobs
               .filter((j) => j.status === 'COMPLETED' || j.status === 'DISPATCHED_TO_PACKING')
               .reduce((sum, j) => sum + (j.quantity || 1), 0);
+
+            const isPlanComplete = actualFinishedQty >= item.planQty && item.planQty > 0;
 
             return (
               <div
@@ -470,6 +504,8 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                 className={`border rounded-2xl p-4 sm:p-5 transition-all shadow-md relative overflow-hidden ${
                   isClosed
                     ? 'bg-slate-900/60 border-slate-800/80 opacity-75'
+                    : isPlanComplete
+                    ? 'bg-slate-900 border-emerald-500/60 hover:border-emerald-400 shadow-emerald-950/30'
                     : hasFuture
                     ? 'bg-slate-900 border-amber-600/40 hover:border-amber-500/70 shadow-amber-950/20'
                     : 'bg-slate-900 border-slate-800 hover:border-slate-700'
@@ -486,11 +522,16 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                         {item.modelPartNo}
                       </h3>
 
-                      {/* Closed Badge */}
+                      {/* Status Badge */}
                       {isClosed ? (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{lang === 'my' ? 'စစ်ဆေးပြီး' : 'ปิดยอดแล้ว'}</span>
+                        </span>
+                      ) : isPlanComplete ? (
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 animate-pulse">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>{lang === 'my' ? 'အစီအစဉ်အတိုင်း ပြည့်ပါပြီ' : '🎉 พ่นครบตามเป้าแล้ว! พร้อมปิดยอด'}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-950/80 text-amber-300 border border-amber-700">
@@ -584,7 +625,11 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                       <button
                         type="button"
                         onClick={() => handleToggleClose(item.id)}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/50 transition-all flex items-center space-x-1.5"
+                        className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs transition-all flex items-center space-x-1.5 ${
+                          isPlanComplete
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 scale-105'
+                            : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-md shadow-emerald-950/50'
+                        }`}
                         title="ตรวจสอบร่วมกับแผนกวางแผนแล้ว กดปิดรายการนี้"
                       >
                         <Check className="w-4 h-4 stroke-[3]" />
