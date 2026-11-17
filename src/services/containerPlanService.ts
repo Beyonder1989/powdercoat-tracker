@@ -9,10 +9,49 @@ const DEFAULT_ACTIVE_CONTAINER = 'EL_SALVADOR';
 export const GOOGLE_SHEET_CSV_URL = 
   'https://docs.google.com/spreadsheets/d/1hZa5qYVzlQJlTOZGWgFz1SnE8-QbJywf/export?format=csv&gid=1962169336';
 
+/**
+ * สร้างคีย์เฉพาะ (Unique Key) สำหรับโมเดลในแต่ละตู้สินค้า
+ * รูปแบบ: CONTAINER__MODEL เช่น EL_SALVADOR__AM106B625
+ * ทำให้คงทนถาวร ไม่ขึ้นกับลำดับแถวหรือการซิงค์ใหม่จาก Google Sheet
+ */
+export const makePlanItemKey = (containerIdOrName: string, modelPartNo: string): string => {
+  const cleanContainer = (containerIdOrName || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9ก-๙]/g, '_');
+  const cleanModel = (modelPartNo || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  return `${cleanContainer}__${cleanModel}`;
+};
+
+/**
+ * แปลงรหัสเดิม (เช่น EL_SALVADOR_2_AM106B625) เป็น Unique Key แบบใหม่
+ * เพื่อให้รายการที่เคยปิดยอดไว้แล้วก่อนหน้านี้ไม่สูญหาย
+ */
+export const normalizeClosedItemId = (id: string): string => {
+  if (!id) return '';
+  const trimmed = id.trim();
+  // ถ้าเป็นรูปแบบใหม่แล้ว: CONTAINER__MODEL
+  if (trimmed.includes('__')) return trimmed.toUpperCase();
+
+  // ถ้าเป็นรูปแบบเดิม: CONTAINER_INDEX_MODEL เช่น EL_SALVADOR_2_AM106B625 หรือ งานผลิตในประเทศ_2_AM106F12
+  const match = trimmed.match(/^(.*?)_\d+_(.*)$/);
+  if (match) {
+    const cleanContainer = match[1].trim().toUpperCase().replace(/[^A-Z0-9_ก-๙]/g, '_');
+    const cleanModel = match[2].trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return `${cleanContainer}__${cleanModel}`;
+  }
+
+  return trimmed.toUpperCase();
+};
+
 // ดึงรายการ ID ชิ้นงานที่ถูกปิดยอดแล้ว (ซิงค์กับ Supabase Cloud)
 export const fetchClosedPlanItemIds = async (): Promise<string[]> => {
   const localData = localStorage.getItem(CLOSED_ITEMS_STORAGE_KEY);
-  const localList: string[] = localData ? JSON.parse(localData) : [];
+  let localList: string[] = localData ? JSON.parse(localData) : [];
+  localList = Array.from(new Set(localList.map(normalizeClosedItemId).filter(Boolean)));
 
   const supabase = getSupabase();
   if (!supabase) return localList;
@@ -25,9 +64,10 @@ export const fetchClosedPlanItemIds = async (): Promise<string[]> => {
       .maybeSingle();
 
     if (!error && data && data.notes) {
-      const cloudList: string[] = JSON.parse(data.notes);
-      localStorage.setItem(CLOSED_ITEMS_STORAGE_KEY, JSON.stringify(cloudList));
-      return cloudList;
+      const rawCloudList: string[] = JSON.parse(data.notes);
+      const normalizedCloudList = Array.from(new Set(rawCloudList.map(normalizeClosedItemId).filter(Boolean)));
+      localStorage.setItem(CLOSED_ITEMS_STORAGE_KEY, JSON.stringify(normalizedCloudList));
+      return normalizedCloudList;
     }
   } catch (e) {
     console.warn('Failed to fetch closed plan items from Supabase:', e);
@@ -38,7 +78,8 @@ export const fetchClosedPlanItemIds = async (): Promise<string[]> => {
 
 // บันทึกการปิด/เปิดรายการชิ้นงาน (ซิงค์กับ Supabase Cloud)
 export const saveClosedPlanItemIds = async (closedIds: string[]): Promise<boolean> => {
-  localStorage.setItem(CLOSED_ITEMS_STORAGE_KEY, JSON.stringify(closedIds));
+  const normalizedIds = Array.from(new Set(closedIds.map(normalizeClosedItemId).filter(Boolean)));
+  localStorage.setItem(CLOSED_ITEMS_STORAGE_KEY, JSON.stringify(normalizedIds));
 
   const supabase = getSupabase();
   if (!supabase) return true;
@@ -54,9 +95,9 @@ export const saveClosedPlanItemIds = async (closedIds: string[]): Promise<boolea
         part_name: 'บันทึกรายการตู้ที่ปิดยอดแล้ว',
         sender_name: 'SYSTEM',
         container_no: 'SYS',
-        quantity: closedIds.length,
+        quantity: normalizedIds.length,
         status: 'RECEIVED',
-        notes: JSON.stringify(closedIds),
+        notes: JSON.stringify(normalizedIds),
         receiver_name: 'SYSTEM',
         created_at: new Date().toISOString(),
       });
@@ -173,8 +214,9 @@ export const syncPlansFromGoogleSheet = async (): Promise<{
         const pcStatus = parts[10]?.trim() || '';
         const note = parts[15]?.trim() || '';
 
+        const itemKey = makePlanItemKey(current.id, rawPart);
         current.items.push({
-          id: `${current.id}_${current.items.length + 1}_${rawPart.replace(/[^a-zA-Z0-9]/g, '')}`,
+          id: itemKey,
           modelPartNo: rawPart,
           planQty: planQty,
           pcStatus: pcStatus,

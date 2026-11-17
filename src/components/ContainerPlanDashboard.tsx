@@ -13,6 +13,8 @@ import {
   setActiveContainerId, 
   getCrossContainerMatches,
   syncPlansFromGoogleSheet,
+  makePlanItemKey,
+  normalizeClosedItemId,
   GOOGLE_SHEET_CSV_URL
 } from '../services/containerPlanService';
 import { useLanguage } from '../context/LanguageContext';
@@ -37,10 +39,10 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  // โหลดรายการ ID ที่ปิดยอดแล้วจาก Cloud / LocalStorage
+  // โหลดรายการ ID ที่ปิดยอดแล้วจาก Cloud / LocalStorage พร้อม Normalize เป็น Unique Key
   useEffect(() => {
     fetchClosedPlanItemIds().then((ids) => {
-      setClosedItemIds(new Set(ids));
+      setClosedItemIds(new Set(ids.map(normalizeClosedItemId).filter(Boolean)));
     });
   }, []);
 
@@ -55,30 +57,55 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     return plans.find((p) => p.id === selectedContainerId) || plans[0];
   }, [plans, selectedContainerId]);
 
+  // ตรวจสอบว่าโมเดลนี้ในตู้นี้ถูกปิดยอดแล้วหรือไม่ (ทนทานต่อการซิงค์ใหม่ 100%)
+  const checkIsItemClosed = (it: PlanItem): boolean => {
+    const k1 = makePlanItemKey(selectedContainer.id, it.modelPartNo);
+    const k2 = makePlanItemKey(selectedContainer.name, it.modelPartNo);
+    return (
+      closedItemIds.has(k1) ||
+      closedItemIds.has(k2) ||
+      closedItemIds.has(it.id) ||
+      closedItemIds.has(normalizeClosedItemId(it.id))
+    );
+  };
+
   // คำนวณรายการโมเดลที่ซ้ำในตู้ถัดๆ ไป (Cross-Container Match)
   const crossMatches = useMemo(() => {
     return getCrossContainerMatches(selectedContainer.id, plans);
   }, [selectedContainer.id, plans]);
 
-  // Toggle ปิด/เปิดรายการชิ้นงาน (Reconciliation)
-  const handleToggleClose = async (itemId: string) => {
+  // Toggle ปิด/เปิดรายการชิ้นงาน (Reconciliation) โดยบันทึกเป็น Unique Key
+  const handleToggleClose = async (itemId: string, modelPartNo: string) => {
     if (!isOperator) {
       openPinModal();
       return;
     }
 
+    const itemKey1 = makePlanItemKey(selectedContainer.id, modelPartNo);
+    const itemKey2 = makePlanItemKey(selectedContainer.name, modelPartNo);
+    const normalizedOldId = normalizeClosedItemId(itemId);
+
+    const isCurrentlyClosed =
+      closedItemIds.has(itemKey1) ||
+      closedItemIds.has(itemKey2) ||
+      closedItemIds.has(itemId) ||
+      closedItemIds.has(normalizedOldId);
+
     const nextClosed = new Set(closedItemIds);
-    if (nextClosed.has(itemId)) {
+    if (isCurrentlyClosed) {
+      nextClosed.delete(itemKey1);
+      nextClosed.delete(itemKey2);
       nextClosed.delete(itemId);
+      nextClosed.delete(normalizedOldId);
     } else {
-      nextClosed.add(itemId);
+      nextClosed.add(itemKey1);
     }
 
     setClosedItemIds(nextClosed);
     await saveClosedPlanItemIds(Array.from(nextClosed));
   };
 
-  // ฟังก์ชันซิงค์ข้อมูลสดจาก Google Sheet
+  // ฟังก์ชันซิงค์ข้อมูลสดจาก Google Sheet (คงสถานะปิดรายการเดิมไว้ 100%)
   const handleSyncGoogleSheet = async () => {
     setIsSyncing(true);
     setSyncMessage(null);
@@ -86,10 +113,13 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       const res = await syncPlansFromGoogleSheet();
       if (res.success && res.plans.length > 0) {
         setPlans(res.plans);
+        // ดึงและผสานสถานะปิดรายการล่าสุด เพื่อไม่ให้สถานะที่เคยปิดไว้หลุดหาย
+        const latestClosed = await fetchClosedPlanItemIds();
+        setClosedItemIds(new Set(latestClosed.map(normalizeClosedItemId).filter(Boolean)));
         setSyncMessage(
           lang === 'my' 
-            ? 'Google Sheet မှ နောက်ဆုံး အချက်အလက်များကို ရယူပြီးပါပြီ' 
-            : 'ซิงค์ข้อมูลล่าสุดจาก Google Sheet สำเร็จเรียบร้อยแล้ว'
+            ? 'Google Sheet မှ အောင်မြင်စွာ ရယူပြီးပါပြီ (ပိတ်ပြီးသားစာရင်းများ မပျောက်ပါ)' 
+            : 'ซิงค์แผนงานล่าสุดจาก Google Sheet สำเร็จ (คงสถานะตรวจปิดยอดเดิมไว้ 100%)'
         );
       } else {
         setSyncMessage(res.message || 'ใช้ข้อมูลแผนงานล่าสุดในระบบ');
@@ -110,7 +140,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     let hasFutureCount = 0;
 
     selectedContainer.items.forEach((it) => {
-      if (closedItemIds.has(it.id)) {
+      if (checkIsItemClosed(it)) {
         closedCount++;
       }
       if (crossMatches.has(it.modelPartNo.trim())) {
@@ -125,7 +155,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   // กรองรายการชิ้นงานในตู้ตามค้นหาและสถานะ
   const filteredItems = useMemo(() => {
     return selectedContainer.items.filter((item) => {
-      const isClosed = closedItemIds.has(item.id);
+      const isClosed = checkIsItemClosed(item);
       const hasFuture = crossMatches.has(item.modelPartNo.trim());
 
       // Filter Mode
@@ -450,7 +480,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
           </div>
         ) : (
           filteredItems.map((item, index) => {
-            const isClosed = closedItemIds.has(item.id);
+            const isClosed = checkIsItemClosed(item);
             const futureMatches = crossMatches.get(item.modelPartNo.trim()) || [];
             const hasFuture = futureMatches.length > 0;
             const totalFutureQty = futureMatches.reduce((sum, f) => sum + f.qty, 0);
@@ -614,7 +644,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                     {isClosed ? (
                       <button
                         type="button"
-                        onClick={() => handleToggleClose(item.id)}
+                        onClick={() => handleToggleClose(item.id, item.modelPartNo)}
                         className="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors flex items-center space-x-1.5"
                         title="เปิดรายการกลับมาทำงานต่อ"
                       >
@@ -624,7 +654,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleToggleClose(item.id)}
+                        onClick={() => handleToggleClose(item.id, item.modelPartNo)}
                         className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs transition-all flex items-center space-x-1.5 ${
                           isPlanComplete
                             ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 scale-105'
