@@ -48,6 +48,25 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [isManageModalOpen, setIsManageModalOpen] = useState<boolean>(false);
   const [manageSearch, setManageSearch] = useState<string>('');
+  const [highlightedModel, setHighlightedModel] = useState<string | null>(null);
+
+  // กระโดดไปยังตู้สินค้าและรายการโมเดลที่คลิกเลือก
+  const handleJumpToContainerModel = (containerKey: string, modelPartNo: string) => {
+    handleSelectContainer(containerKey);
+    setFilterMode('ALL');
+    setSearchQuery(modelPartNo);
+    const cleanTarget = modelPartNo.trim().toLowerCase();
+    setHighlightedModel(cleanTarget);
+    setTimeout(() => {
+      const el = document.getElementById(`plan-item-${cleanTarget.replace(/[^a-z0-9]/g, '_')}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+    setTimeout(() => {
+      setHighlightedModel((prev) => (prev === cleanTarget ? null : prev));
+    }, 2600);
+  };
 
   // โหลดรายการ ID ที่ปิดยอดแล้ว, ที่ถูกยกเลิกการผลิต และตู้ที่ซ่อนการแสดงผลจาก Cloud / LocalStorage
   useEffect(() => {
@@ -145,7 +164,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   // คำนวณรายการโมเดลที่ซ้ำในตู้ถัดๆ ไป (เฉพาะตู้ที่เปิดแสดงผลอยู่จริง)
   const crossMatches = useMemo(() => {
     if (visiblePlans.length === 0) {
-      return new Map<string, Array<{ containerName: string; containerDate?: string; qty: number }>>();
+      return new Map<string, Array<{ containerKey: string; containerName: string; containerDate?: string; qty: number }>>();
     }
     return getCrossContainerMatches(makeContainerKey(selectedContainer), visiblePlans);
   }, [selectedContainer, visiblePlans]);
@@ -326,12 +345,14 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   const globalModelSearchResults = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 3) return [];
     const q = searchQuery.trim().toLowerCase();
-    const results: Array<{ containerName: string; containerDate?: string; item: PlanItem }> = [];
+    const results: Array<{ containerKey: string; containerName: string; containerDate?: string; item: PlanItem }> = [];
 
     visiblePlans.forEach((p) => {
+      const containerKey = makeContainerKey(p);
       p.items.forEach((it) => {
         if (it.modelPartNo.toLowerCase().includes(q)) {
           results.push({
+            containerKey,
             containerName: p.name,
             containerDate: p.date,
             item: it,
@@ -655,28 +676,49 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
         </div>
       </div>
 
-      {/* 5. Global Search Results (ถ้าค้นหาแล้วเจอในตู้สินค้าอื่นๆ) */}
+      {/* 5. Global Search Results (ถ้าค้นหาแล้วเจอในตู้สินค้าอื่นๆ — กดจิ้มเพื่อวาร์ปไปยังตู้นั้นได้เลย) */}
       {searchQuery.trim().length >= 3 && globalModelSearchResults.length > 0 && (
         <div className="bg-amber-950/40 border border-amber-600/50 rounded-2xl p-4 text-xs space-y-2">
-          <div className="flex items-center space-x-2 text-amber-300 font-bold">
-            <Search className="w-4 h-4 text-amber-400" />
-            <span>
-              {lang === 'my'
-                ? `မော်ဒယ် "${searchQuery}" ကို အခြား ကွန်တိန်နာ ${globalModelSearchResults.length} ခုတွင် တွေ့ရှိသည်:`
-                : `ผลการค้นหาข้ามตู้: พบโมเดล "${searchQuery}" ในแผนงานทั้งหมด ${globalModelSearchResults.length} รายการ:`}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center space-x-2 text-amber-300 font-bold">
+              <Search className="w-4 h-4 text-amber-400" />
+              <span>
+                {lang === 'my'
+                  ? `မော်ဒယ် "${searchQuery}" ကို ကွန်တိန်နာ ${globalModelSearchResults.length} ခုတွင် တွေ့ရှိသည်:`
+                  : `ผลการค้นหาข้ามตู้: พบโมเดล "${searchQuery}" ในแผนงานทั้งหมด ${globalModelSearchResults.length} รายการ:`}
+              </span>
+            </div>
+            <span className="text-[11px] text-amber-200/80">
+              {lang === 'my' ? '👆 နှိပ်၍ ကွန်တိန်နာသို့ တိုက်ရိုက်သွားပါ' : '👆 แตะที่ตู้เพื่อข้ามไปยังรายการนั้นทันที'}
             </span>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            {globalModelSearchResults.slice(0, 10).map((res, i) => (
-              <span
-                key={i}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-amber-600/40 text-slate-200 flex items-center space-x-1.5"
-              >
-                <span className="font-bold text-amber-400">{res.containerName}</span>
-                {res.containerDate && <span className="text-slate-400 text-[10px]">({res.containerDate})</span>}
-                <span className="text-white font-mono font-bold">: {res.item.planQty} ชุด</span>
-              </span>
-            ))}
+            {globalModelSearchResults.slice(0, 15).map((res, i) => {
+              const isCurrent = res.containerKey === makeContainerKey(selectedContainer);
+              return (
+                <button
+                  key={`${res.containerKey}_${res.item.id}_${i}`}
+                  type="button"
+                  onClick={() => handleJumpToContainerModel(res.containerKey, res.item.modelPartNo)}
+                  className={`px-3 py-1.5 rounded-xl border text-left transition-all flex items-center space-x-1.5 group cursor-pointer ${
+                    isCurrent
+                      ? 'bg-orange-500/25 border-orange-400 text-white shadow-sm shadow-orange-500/20 ring-1 ring-orange-400/60'
+                      : 'bg-slate-900 hover:bg-amber-500/20 border-amber-600/40 hover:border-amber-400 text-slate-200 hover:text-white hover:scale-[1.02]'
+                  }`}
+                  title={`คลิกเพื่อเปิดดู ${res.item.modelPartNo} ในตู้ ${res.containerName}`}
+                >
+                  <span className="font-bold text-amber-400 group-hover:text-amber-300">{res.containerName}</span>
+                  {res.containerDate && <span className="text-slate-400 text-[10px]">({res.containerDate})</span>}
+                  {res.item.modelPartNo.toLowerCase() !== searchQuery.trim().toLowerCase() && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-orange-300">
+                      {res.item.modelPartNo}
+                    </span>
+                  )}
+                  <span className="text-white font-mono font-bold">: {res.item.planQty} ชุด</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-amber-400/70 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -743,12 +785,17 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
               .reduce((sum, j) => sum + (j.quantity || 1), 0);
 
             const isPlanComplete = actualFinishedQty >= item.planQty && item.planQty > 0;
+            const cleanItemModel = item.modelPartNo.trim().toLowerCase();
+            const isHighlighted = highlightedModel === cleanItemModel;
 
             return (
               <div
                 key={item.id}
+                id={`plan-item-${cleanItemModel.replace(/[^a-z0-9]/g, '_')}`}
                 className={`border rounded-2xl p-4 sm:p-5 transition-all shadow-md relative overflow-hidden ${
-                  isCancelled
+                  isHighlighted
+                    ? 'bg-slate-900 border-orange-400 ring-2 ring-orange-400/80 shadow-lg shadow-orange-500/25'
+                    : isCancelled
                     ? 'bg-slate-900/60 border-rose-900/80 opacity-80'
                     : isClosed
                     ? 'bg-slate-900/60 border-slate-800/80 opacity-75'
@@ -824,14 +871,18 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
 
                           <div className="flex flex-wrap gap-1.5 pt-0.5">
                             {futureMatches.map((f, fi) => (
-                              <span
+                              <button
                                 key={fi}
-                                className="px-2 py-0.5 rounded-lg bg-slate-900/90 border border-amber-600/30 text-slate-200 flex items-center space-x-1 font-mono text-[11px]"
+                                type="button"
+                                onClick={() => handleJumpToContainerModel(f.containerKey, item.modelPartNo)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-amber-500/20 border border-amber-600/30 hover:border-amber-400 text-slate-200 hover:text-white flex items-center space-x-1 font-mono text-[11px] transition-all cursor-pointer group"
+                                title={`คลิกเพื่อเปิดดู ${item.modelPartNo} ในตู้ ${f.containerName}`}
                               >
                                 <span className="font-bold text-amber-300">{f.containerName}</span>
                                 {f.containerDate && <span className="text-slate-400 text-[10px]">({f.containerDate})</span>}
                                 <span className="text-emerald-400 font-bold">={f.qty} ชุด</span>
-                              </span>
+                                <ArrowRight className="w-3 h-3 text-amber-400/70 group-hover:translate-x-0.5 transition-transform" />
+                              </button>
                             ))}
                           </div>
                         </div>

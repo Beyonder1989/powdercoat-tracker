@@ -289,19 +289,19 @@ export const setActiveContainerId = (containerId: string): void => {
 export const getCrossContainerMatches = (
   currentContainerIdOrKey: string,
   plans: ContainerPlan[] = INITIAL_CONTAINER_PLANS
-): Map<string, Array<{ containerName: string; containerDate?: string; qty: number }>> => {
+): Map<string, Array<{ containerKey: string; containerName: string; containerDate?: string; qty: number }>> => {
   const currentIdx = plans.findIndex(
     (p) => makeContainerKey(p) === currentContainerIdOrKey || p.id === currentContainerIdOrKey
   );
   if (currentIdx === -1) return new Map();
 
   const futureContainers = plans.slice(currentIdx + 1);
-  const resultMap = new Map<string, Array<{ containerName: string; containerDate?: string; qty: number }>>();
+  const resultMap = new Map<string, Array<{ containerKey: string; containerName: string; containerDate?: string; qty: number }>>();
 
   const currentPlan = plans[currentIdx];
   currentPlan.items.forEach((item) => {
     const cleanModel = item.modelPartNo.trim().toLowerCase();
-    const matches: Array<{ containerName: string; containerDate?: string; qty: number }> = [];
+    const matches: Array<{ containerKey: string; containerName: string; containerDate?: string; qty: number }> = [];
 
     futureContainers.forEach((fc) => {
       const match = fc.items.find(
@@ -309,6 +309,7 @@ export const getCrossContainerMatches = (
       );
       if (match) {
         matches.push({
+          containerKey: makeContainerKey(fc),
           containerName: fc.name,
           containerDate: fc.date,
           qty: match.planQty,
