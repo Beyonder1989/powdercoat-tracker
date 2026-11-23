@@ -2,20 +2,24 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Layers, Package, CheckCircle2, Clock, AlertCircle, RefreshCw, 
   ExternalLink, Search, ChevronDown, Check, ArrowRight, Bell, 
-  Flame, Filter, Undo2, Calendar, FileSpreadsheet, Sparkles, Ban
+  Flame, Filter, Undo2, Calendar, FileSpreadsheet, Sparkles, Ban,
+  SlidersHorizontal, Eye, EyeOff, X
 } from 'lucide-react';
 import { ContainerPlan, PlanItem, PowderCoatJob } from '../types';
-import { INITIAL_CONTAINER_PLANS } from '../data/initialContainerPlans';
 import { 
   fetchClosedPlanItemIds, 
   saveClosedPlanItemIds, 
   fetchCancelledPlanItemIds,
   saveCancelledPlanItemIds,
+  fetchHiddenContainerKeys,
+  saveHiddenContainerKeys,
+  getCachedContainerPlans,
   getActiveContainerId, 
   setActiveContainerId, 
   getCrossContainerMatches,
   syncPlansFromGoogleSheet,
   makePlanItemKey,
+  makeContainerKey,
   normalizeClosedItemId,
   GOOGLE_SHEET_CSV_URL
 } from '../services/containerPlanService';
@@ -30,19 +34,22 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   const { lang, t } = useLanguage();
   const { isOperator, openPinModal } = useRole();
 
-  // แผนการผลิตทั้งหมด (เริ่มต้นจาก 25 ตู้ที่ดึงมาจาก Google Sheet)
-  const [plans, setPlans] = useState<ContainerPlan[]>(INITIAL_CONTAINER_PLANS);
+  // แผนการผลิตทั้งหมด (เริ่มต้นจากแคชล่าสุดหรือ 25 ตู้ที่ดึงมาจาก Google Sheet)
+  const [plans, setPlans] = useState<ContainerPlan[]>(() => getCachedContainerPlans());
   const [selectedContainerId, setSelectedContainerId] = useState<string>(getActiveContainerId);
   const [closedItemIds, setClosedItemIds] = useState<Set<string>>(new Set());
   const [cancelledItemIds, setCancelledItemIds] = useState<Set<string>>(new Set());
+  const [hiddenContainerKeys, setHiddenContainerKeys] = useState<Set<string>>(new Set());
   
   // UI States
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterMode, setFilterMode] = useState<'ALL' | 'PENDING' | 'CLOSED' | 'CANCELLED' | 'HAS_FUTURE'>('ALL');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [isManageModalOpen, setIsManageModalOpen] = useState<boolean>(false);
+  const [manageSearch, setManageSearch] = useState<string>('');
 
-  // โหลดรายการ ID ที่ปิดยอดแล้ว และที่ถูกยกเลิกการผลิตจาก Cloud / LocalStorage พร้อม Normalize เป็น Unique Key
+  // โหลดรายการ ID ที่ปิดยอดแล้ว, ที่ถูกยกเลิกการผลิต และตู้ที่ซ่อนการแสดงผลจาก Cloud / LocalStorage
   useEffect(() => {
     fetchClosedPlanItemIds().then((ids) => {
       setClosedItemIds(new Set(ids.map(normalizeClosedItemId).filter(Boolean)));
@@ -50,18 +57,66 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     fetchCancelledPlanItemIds().then((ids) => {
       setCancelledItemIds(new Set(ids.map(normalizeClosedItemId).filter(Boolean)));
     });
+    fetchHiddenContainerKeys().then((keys) => {
+      setHiddenContainerKeys(new Set(keys));
+    });
   }, []);
 
+  // เฉพาะตู้สินค้าที่เปิดแสดงผลอยู่จริง (ไม่รวมตู้ที่ซ่อน/เลื่อน/ยกเลิก)
+  const visiblePlans = useMemo(() => {
+    return plans.filter((p) => !hiddenContainerKeys.has(makeContainerKey(p)));
+  }, [plans, hiddenContainerKeys]);
+
   // เมื่อเปลี่ยนตู้ ให้บันทึกเป็นตู้ปัจจุบัน
-  const handleSelectContainer = (id: string) => {
-    setSelectedContainerId(id);
-    setActiveContainerId(id);
+  const handleSelectContainer = (keyOrId: string) => {
+    setSelectedContainerId(keyOrId);
+    setActiveContainerId(keyOrId);
   };
 
-  // ดึงตู้ที่เลือกอยู่ปัจจุบัน
+  // ดึงตู้ที่เลือกอยู่ปัจจุบัน (จากตู้ที่เปิดแสดงผลอยู่)
   const selectedContainer = useMemo(() => {
-    return plans.find((p) => p.id === selectedContainerId) || plans[0];
-  }, [plans, selectedContainerId]);
+    const pool = visiblePlans.length > 0 ? visiblePlans : plans;
+    return (
+      pool.find((p) => makeContainerKey(p) === selectedContainerId || p.id === selectedContainerId) ||
+      pool[0]
+    );
+  }, [visiblePlans, plans, selectedContainerId]);
+
+  // จัดการเปิด/ปิดการแสดงผลตู้สินค้า
+  const handleToggleContainerVisibility = async (plan: ContainerPlan) => {
+    if (!isOperator) {
+      openPinModal();
+      return;
+    }
+    const key = makeContainerKey(plan);
+    const nextHidden = new Set(hiddenContainerKeys);
+    if (nextHidden.has(key)) {
+      nextHidden.delete(key);
+    } else {
+      nextHidden.add(key);
+    }
+    setHiddenContainerKeys(nextHidden);
+    await saveHiddenContainerKeys(Array.from(nextHidden));
+  };
+
+  const handleShowAllContainers = async () => {
+    if (!isOperator) {
+      openPinModal();
+      return;
+    }
+    setHiddenContainerKeys(new Set());
+    await saveHiddenContainerKeys([]);
+  };
+
+  const handleHideAllContainers = async () => {
+    if (!isOperator) {
+      openPinModal();
+      return;
+    }
+    const allKeys = plans.map((p) => makeContainerKey(p));
+    setHiddenContainerKeys(new Set(allKeys));
+    await saveHiddenContainerKeys(allKeys);
+  };
 
   // ตรวจสอบว่าโมเดลนี้ในตู้นี้ถูกปิดยอดแล้วหรือไม่ (ทนทานต่อการซิงค์ใหม่ 100%)
   const checkIsItemClosed = (it: PlanItem): boolean => {
@@ -87,10 +142,13 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     );
   };
 
-  // คำนวณรายการโมเดลที่ซ้ำในตู้ถัดๆ ไป (Cross-Container Match)
+  // คำนวณรายการโมเดลที่ซ้ำในตู้ถัดๆ ไป (เฉพาะตู้ที่เปิดแสดงผลอยู่จริง)
   const crossMatches = useMemo(() => {
-    return getCrossContainerMatches(selectedContainer.id, plans);
-  }, [selectedContainer.id, plans]);
+    if (visiblePlans.length === 0) {
+      return new Map<string, Array<{ containerName: string; containerDate?: string; qty: number }>>();
+    }
+    return getCrossContainerMatches(makeContainerKey(selectedContainer), visiblePlans);
+  }, [selectedContainer, visiblePlans]);
 
   // Toggle ปิด/เปิดรายการชิ้นงาน (Reconciliation) โดยบันทึกเป็น Unique Key
   const handleToggleClose = async (itemId: string, modelPartNo: string) => {
@@ -192,11 +250,13 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       const res = await syncPlansFromGoogleSheet();
       if (res.success && res.plans.length > 0) {
         setPlans(res.plans);
-        // ดึงและผสานสถานะปิดรายการและสถานะยกเลิก เพื่อไม่ให้สถานะหลุดหาย
+        // ดึงและผสานสถานะปิดรายการ สถานะยกเลิก และตู้ที่ซ่อน เพื่อไม่ให้สถานะหลุดหาย
         const latestClosed = await fetchClosedPlanItemIds();
         setClosedItemIds(new Set(latestClosed.map(normalizeClosedItemId).filter(Boolean)));
         const latestCancelled = await fetchCancelledPlanItemIds();
         setCancelledItemIds(new Set(latestCancelled.map(normalizeClosedItemId).filter(Boolean)));
+        const latestHidden = await fetchHiddenContainerKeys();
+        setHiddenContainerKeys(new Set(latestHidden));
         setSyncMessage(
           lang === 'my' 
             ? 'Google Sheet မှ အောင်မြင်စွာ ရယူပြီးပါပြီ (ပိတ်ပြီး/ဖျက်သိမ်းပြီး စာရင်းများ မပျောက်ပါ)' 
@@ -268,7 +328,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     const q = searchQuery.trim().toLowerCase();
     const results: Array<{ containerName: string; containerDate?: string; item: PlanItem }> = [];
 
-    plans.forEach((p) => {
+    visiblePlans.forEach((p) => {
       p.items.forEach((it) => {
         if (it.modelPartNo.toLowerCase().includes(q)) {
           results.push({
@@ -281,7 +341,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     });
 
     return results;
-  }, [plans, searchQuery]);
+  }, [visiblePlans, searchQuery]);
 
   return (
     <div className="space-y-6 pb-16">
@@ -309,8 +369,25 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             </div>
           </div>
 
-          {/* Action Buttons: Sync Google Sheet & View Real Sheet */}
+          {/* Action Buttons: Manage Visible Containers, Sync Google Sheet & View Real Sheet */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsManageModalOpen(true)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-colors ${
+                hiddenContainerKeys.size > 0
+                  ? 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border-orange-500/60 shadow-sm shadow-orange-500/20'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+              title="เลือกเปิด/ซ่อนตู้สินค้าที่ต้องการทำงานจริง"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-orange-400" />
+              <span>
+                {lang === 'my'
+                  ? `ကွန်တိန်နာ စီမံခန့်ခွဲမည် (${visiblePlans.length}/${plans.length})`
+                  : `จัดการตู้ที่แสดง (${visiblePlans.length}/${plans.length})`}
+              </span>
+            </button>
+
             <button
               onClick={handleSyncGoogleSheet}
               disabled={isSyncing}
@@ -350,42 +427,63 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             </label>
             <span className="text-xs font-medium text-amber-400">
               {lang === 'my' 
-                ? `စုစုပေါင်း ကွန်တိန်နာ ${plans.length} ခု တွေ့ရှိသည်` 
-                : `พบแผนงานทั้งหมด ${plans.length} ตู้ (ตู้ปัจจุบัน: ${selectedContainer.name})`}
+                ? `ပြသနေသော ကွန်တိန်နာ ${visiblePlans.length} / ${plans.length} ခု` 
+                : `แสดง ${visiblePlans.length} จาก ${plans.length} ตู้${hiddenContainerKeys.size > 0 ? ` (ซ่อนอยู่ ${hiddenContainerKeys.size} ตู้)` : ''}${visiblePlans.length > 0 ? ` • ตู้ปัจจุบัน: ${selectedContainer.name}${selectedContainer.date ? ` (${selectedContainer.date})` : ''}` : ''}`}
             </span>
           </div>
 
           {/* Container Selector Pills */}
-          <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
-            {plans.map((p) => {
-              const isSelected = p.id === selectedContainer.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => handleSelectContainer(p.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 shrink-0 ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-400'
-                      : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/80 hover:border-slate-600'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white animate-pulse' : 'bg-slate-500'}`} />
-                  <span className="font-bold">{p.name}</span>
-                  {p.date && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isSelected ? 'bg-black/30 text-orange-100' : 'bg-slate-900 text-slate-400'}`}>
-                      {p.date}
+          {visiblePlans.length === 0 ? (
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-dashed border-slate-700 text-center space-y-2">
+              <p className="text-xs text-slate-400">
+                {lang === 'my'
+                  ? 'ကွန်တိန်နာအားလုံးကို ဝှက်ထားပါသည်'
+                  : 'ขณะนี้ซ่อนตู้สินค้าไว้ทั้งหมด กรุณากด "จัดการตู้ที่แสดง" เพื่อเลือกตู้ที่ต้องการผลิต'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsManageModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold inline-flex items-center space-x-1.5 transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>{lang === 'my' ? 'ကွန်တိန်နာ ရွေးချယ်မည်' : 'เลือกตู้สินค้าที่ต้องการแสดง'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
+              {visiblePlans.map((p) => {
+                const containerKey = makeContainerKey(p);
+                const isSelected = containerKey === makeContainerKey(selectedContainer);
+                return (
+                  <button
+                    key={containerKey}
+                    onClick={() => handleSelectContainer(containerKey)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 shrink-0 ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-400'
+                        : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/80 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white animate-pulse' : 'bg-slate-500'}`} />
+                    <span className="font-bold">{p.name}</span>
+                    {p.date && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isSelected ? 'bg-black/30 text-orange-100' : 'bg-slate-900 text-slate-400'}`}>
+                        {p.date}
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-mono ${isSelected ? 'text-white' : 'text-slate-400'}`}>
+                      ({p.items.length})
                     </span>
-                  )}
-                  <span className={`text-[10px] font-mono ${isSelected ? 'text-white' : 'text-slate-400'}`}>
-                    ({p.items.length})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
+      {visiblePlans.length > 0 && (
+        <>
       {/* 3. Container Status Overview Cards (5 KPIs) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* KPI 1: Total Models in this container */}
@@ -820,6 +918,192 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
           })
         )}
       </div>
+        </>
+      )}
+
+      {/* Modal: จัดการตู้สินค้าที่แสดงผล (Container Visibility Manager) */}
+      {isManageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white">
+                    {lang === 'my' ? 'ကွန်တိန်နာ ပြသမှု စီမံခန့်ခွဲခြင်း' : 'จัดการตู้สินค้าที่แสดงผล (ซ่อน/แสดง)'}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {lang === 'my'
+                      ? 'လက်ရှိထုတ်လုပ်မည့် ကွန်တိန်နာများကိုသာ ရွေးချယ်ပြသပါ'
+                      : 'เลือกแสดงเฉพาะตู้ที่ผลิตจริง ซ่อนตู้ที่ยกเลิก เลื่อนกำหนด หรือส่งออกจบแล้ว (มีผลทั้งหน้าแผนผลิตและฟอร์มรับงาน)'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManageModalOpen(false);
+                  setManageSearch('');
+                }}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Toolbar: Search & Bulk Actions */}
+            <div className="p-4 border-b border-slate-800 bg-slate-900/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="ค้นหาชื่อตู้ หรือวันที่ เช่น KENYA, SOUTH, RMA, 27/11..."
+                    value={manageSearch}
+                    onChange={(e) => setManageSearch(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  {manageSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setManageSearch('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleShowAllContainers}
+                    className="px-3 py-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-700/70 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>แสดงทั้งหมด</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleHideAllContainers}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+                  >
+                    <EyeOff className="w-3.5 h-3.5" />
+                    <span>ซ่อนทั้งหมด</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>
+                  กำลังแสดง <strong className="text-emerald-400">{visiblePlans.length}</strong> ตู้ • ซ่อนอยู่{' '}
+                  <strong className="text-rose-400">{hiddenContainerKeys.size}</strong> ตู้ (จากทั้งหมด {plans.length} ตู้ใน Google Sheet)
+                </span>
+                {!isOperator && (
+                  <span className="text-amber-400 font-medium">🔒 ต้องยืนยัน PIN ช่าง/หัวหน้างานเพื่อแก้ไข</span>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Container List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {plans
+                .filter((p) => {
+                  if (!manageSearch.trim()) return true;
+                  const q = manageSearch.toLowerCase();
+                  return (
+                    p.name.toLowerCase().includes(q) ||
+                    (p.date || '').toLowerCase().includes(q)
+                  );
+                })
+                .map((p) => {
+                  const key = makeContainerKey(p);
+                  const isHidden = hiddenContainerKeys.has(key);
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => handleToggleContainerVisibility(p)}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                        isHidden
+                          ? 'bg-slate-950/50 border-slate-800/80 opacity-60 hover:opacity-85 hover:border-slate-700'
+                          : 'bg-slate-800/70 border-emerald-500/40 hover:border-emerald-400 shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                            isHidden
+                              ? 'bg-slate-900 border-slate-800 text-slate-500'
+                              : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                          }`}
+                        >
+                          {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`font-bold text-sm truncate ${isHidden ? 'line-through text-slate-400' : 'text-white'}`}>
+                              {p.name}
+                            </span>
+                            {p.date && (
+                              <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-900 text-amber-300 border border-slate-700">
+                                {p.date}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400 block mt-0.5">
+                            {p.items.length} โมเดล • รวม {p.items.reduce((s, it) => s + (it.planQty || 1), 0)} ชิ้น
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <span
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border inline-flex items-center space-x-1.5 ${
+                            isHidden
+                              ? 'bg-slate-900 text-slate-400 border-slate-700'
+                              : 'bg-emerald-600 text-white border-emerald-500 shadow'
+                          }`}
+                        >
+                          {isHidden ? (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5" />
+                              <span>ซ่อนอยู่</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              <span>กำลังแสดง</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                * บันทึกอัตโนมัติลง Cloud และไม่กระทบไฟล์ Google Sheet ของฝ่ายวางแผน
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManageModalOpen(false);
+                  setManageSearch('');
+                }}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 transition-all"
+              >
+                เสร็จสิ้น
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

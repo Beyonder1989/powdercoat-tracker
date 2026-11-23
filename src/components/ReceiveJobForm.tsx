@@ -8,11 +8,13 @@ import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO } from '../data/masterData';
 import { getEmployeesByDepartment, POWDER_COAT_RECEIVERS } from '../data/employeeData';
 import { uploadEvidenceImage, createBatchJobs } from '../lib/supabase';
 import { PowderCoatJob, JobPriority, PlanItem } from '../types';
-import { INITIAL_CONTAINER_PLANS } from '../data/initialContainerPlans';
 import { 
   getActiveContainerId, 
+  getCachedContainerPlans,
   fetchCancelledPlanItemIds, 
+  fetchHiddenContainerKeys,
   makePlanItemKey, 
+  makeContainerKey,
   normalizeClosedItemId 
 } from '../services/containerPlanService';
 import { useLanguage } from '../context/LanguageContext';
@@ -55,21 +57,28 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
   const [customSenderName, setCustomSenderName] = useState<string>('');
 
   // ตู้สินค้าจากแผนการผลิต (Production Plan Container)
+  const allPlans = useMemo(() => getCachedContainerPlans(), []);
+  const [hiddenContainerKeys, setHiddenContainerKeys] = useState<Set<string>>(new Set());
+
+  const visiblePlans = useMemo(() => {
+    const filtered = allPlans.filter((p) => !hiddenContainerKeys.has(makeContainerKey(p)));
+    return filtered.length > 0 ? filtered : allPlans;
+  }, [allPlans, hiddenContainerKeys]);
+
   const initialActiveContainerId = useMemo(() => getActiveContainerId(), []);
   const defaultContainer = useMemo(() => {
     return (
-      INITIAL_CONTAINER_PLANS.find((p) => p.id === initialActiveContainerId) ||
-      INITIAL_CONTAINER_PLANS.find((p) => p.id === 'EL_SALVADOR') ||
-      INITIAL_CONTAINER_PLANS[0]
+      allPlans.find((p) => makeContainerKey(p) === initialActiveContainerId || p.id === initialActiveContainerId) ||
+      allPlans[0]
     );
-  }, [initialActiveContainerId]);
+  }, [allPlans, initialActiveContainerId]);
 
   const [containerMode, setContainerMode] = useState<'PLAN' | 'CUSTOM'>('PLAN');
-  const [selectedPlanContainerId, setSelectedPlanContainerId] = useState<string>(
-    defaultContainer ? defaultContainer.id : 'EL_SALVADOR'
+  const [selectedPlanContainerKey, setSelectedPlanContainerKey] = useState<string>(
+    defaultContainer ? makeContainerKey(defaultContainer) : ''
   );
   const [containerNo, setContainerNo] = useState<string>(
-    defaultContainer ? defaultContainer.name : 'EL SALVADOR'
+    defaultContainer ? defaultContainer.name : ''
   );
   const [customContainerText, setCustomContainerText] = useState<string>('');
 
@@ -77,30 +86,47 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
   const currentPlanContainer = useMemo(() => {
     if (containerMode !== 'PLAN') return null;
     return (
-      INITIAL_CONTAINER_PLANS.find((p) => p.id === selectedPlanContainerId) || null
+      visiblePlans.find((p) => makeContainerKey(p) === selectedPlanContainerKey || p.id === selectedPlanContainerKey) ||
+      visiblePlans[0] ||
+      null
     );
-  }, [containerMode, selectedPlanContainerId]);
+  }, [containerMode, visiblePlans, selectedPlanContainerKey]);
 
-  const handleSelectPlanContainer = (planId: string) => {
-    if (planId === '__custom__') {
+  const handleSelectPlanContainer = (planKey: string) => {
+    if (planKey === '__custom__') {
       setContainerMode('CUSTOM');
       setContainerNo(customContainerText);
       return;
     }
-    const found = INITIAL_CONTAINER_PLANS.find((p) => p.id === planId);
+    const found = visiblePlans.find((p) => makeContainerKey(p) === planKey || p.id === planKey);
     if (found) {
       setContainerMode('PLAN');
-      setSelectedPlanContainerId(found.id);
+      setSelectedPlanContainerKey(makeContainerKey(found));
       setContainerNo(found.name);
     }
   };
 
-  // 1.1 รายการที่ถูกฝ่ายวางแผนยกเลิกการผลิต
+  // 1.1 รายการที่ถูกฝ่ายวางแผนยกเลิกการผลิต และตู้ที่ซ่อนการแสดงผล
   const [cancelledItemIds, setCancelledItemIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchCancelledPlanItemIds().then((ids) => {
       setCancelledItemIds(new Set(ids.map(normalizeClosedItemId)));
+    });
+    fetchHiddenContainerKeys().then((keys) => {
+      const hiddenSet = new Set(keys);
+      setHiddenContainerKeys(hiddenSet);
+      // ถ้าตู้ที่เลือกอยู่เริ่มต้นถูกซ่อนไว้ ให้สลับไปตู้แรกที่เปิดแสดงผลอยู่ทันที
+      const visible = allPlans.filter((p) => !hiddenSet.has(makeContainerKey(p)));
+      if (visible.length > 0) {
+        const stillVisible = visible.find(
+          (p) => makeContainerKey(p) === selectedPlanContainerKey || p.id === selectedPlanContainerKey
+        );
+        if (!stillVisible) {
+          setSelectedPlanContainerKey(makeContainerKey(visible[0]));
+          setContainerNo(visible[0].name);
+        }
+      }
     });
   }, []);
 
@@ -235,12 +261,17 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
     }
 
     // ตรวจสอบความปลอดภัย: มีโมเดลใดที่ฝ่ายวางแผนแจ้ง "ยกเลิกการผลิต" ในตู้นี้หรือไม่
-    if (containerMode === 'PLAN') {
+    if (containerMode === 'PLAN' && currentPlanContainer) {
       const cancelledItemInForm = items.find((it) => {
         const model = (it.modelPartNo || it.modelSearch).trim();
         if (!model) return false;
-        const key = makePlanItemKey(selectedPlanContainerId, model);
-        return cancelledItemIds.has(key) || cancelledItemIds.has(normalizeClosedItemId(key));
+        const key1 = makePlanItemKey(currentPlanContainer.id, model);
+        const key2 = makePlanItemKey(currentPlanContainer.name, model);
+        return (
+          cancelledItemIds.has(key1) ||
+          cancelledItemIds.has(key2) ||
+          cancelledItemIds.has(normalizeClosedItemId(key1))
+        );
       });
       if (cancelledItemInForm) {
         const modelName = (cancelledItemInForm.modelPartNo || cancelledItemInForm.modelSearch).trim();
@@ -459,8 +490,13 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       type="button"
                       onClick={() => {
                         setContainerMode('PLAN');
-                        const p = INITIAL_CONTAINER_PLANS.find((x) => x.id === selectedPlanContainerId) || INITIAL_CONTAINER_PLANS[0];
-                        setContainerNo(p.name);
+                        const p =
+                          visiblePlans.find((x) => makeContainerKey(x) === selectedPlanContainerKey) ||
+                          visiblePlans[0];
+                        if (p) {
+                          setSelectedPlanContainerKey(makeContainerKey(p));
+                          setContainerNo(p.name);
+                        }
                       }}
                       className="text-[11px] text-orange-400 hover:text-orange-300 flex items-center space-x-1 hover:underline font-medium"
                     >
@@ -474,16 +510,18 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                   <div className="space-y-2">
                     <div className="relative">
                       <select
-                        value={selectedPlanContainerId}
+                        value={currentPlanContainer ? makeContainerKey(currentPlanContainer) : selectedPlanContainerKey}
                         onChange={(e) => handleSelectPlanContainer(e.target.value)}
                         className="w-full bg-slate-800/90 border border-orange-500/50 rounded-xl pl-10 pr-9 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-semibold appearance-none cursor-pointer"
                       >
-                        {INITIAL_CONTAINER_PLANS.map((plan) => (
-                          <option key={plan.id} value={plan.id} className="bg-slate-900 text-white py-1">
-                            {plan.id === 'EL_SALVADOR' ? '⭐ ' : '📦 '}
-                            {plan.name} ({plan.items.length} รายการตามแผน)
-                          </option>
-                        ))}
+                        {visiblePlans.map((plan) => {
+                          const planKey = makeContainerKey(plan);
+                          return (
+                            <option key={planKey} value={planKey} className="bg-slate-900 text-white py-1">
+                              📦 {plan.name}{plan.date ? ` [${plan.date}]` : ''} ({plan.items.length} รายการตามแผน)
+                            </option>
+                          );
+                        })}
                         <option value="__custom__" className="bg-slate-900 text-amber-300 font-semibold">
                           ✏️ + ระบุตู้/ลังสินค้าอื่นด้วยตนเอง (นอกแผน)
                         </option>
@@ -492,31 +530,27 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
                     </div>
 
-                    {/* Quick selection chips for top containers */}
+                    {/* Quick selection chips for active/visible containers */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                       <span className="text-[10px] text-slate-400 font-medium mr-1">
                         {lang === 'my' ? 'အမြန်ရွေးချယ်:' : 'ตู้ด่วน:'}
                       </span>
-                      {[
-                        { id: 'EL_SALVADOR', label: '⭐ EL SALVADOR' },
-                        { id: 'KENYA', label: 'KENYA' },
-                        { id: 'COSTA_RICA', label: 'COSTA RICA' },
-                        { id: 'SOUTH_AFICA', label: 'SOUTH AFRICA' },
-                        { id: 'งานผลิตในประเทศ', label: '🇹🇭 ในประเทศ' },
-                      ].map((c) => {
-                        const isSelected = selectedPlanContainerId === c.id;
+                      {visiblePlans.slice(0, 5).map((plan) => {
+                        const planKey = makeContainerKey(plan);
+                        const isSelected =
+                          currentPlanContainer && makeContainerKey(currentPlanContainer) === planKey;
                         return (
                           <button
-                            key={c.id}
+                            key={planKey}
                             type="button"
-                            onClick={() => handleSelectPlanContainer(c.id)}
+                            onClick={() => handleSelectPlanContainer(planKey)}
                             className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all ${
                               isSelected
                                 ? 'bg-orange-500 text-white font-bold shadow-sm shadow-orange-500/30'
                                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/80'
                             }`}
                           >
-                            {c.label}
+                            {plan.name}{plan.date ? ` (${plan.date})` : ''}
                           </button>
                         );
                       })}
@@ -718,7 +752,7 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                   totalItems={items.length}
                   planItems={currentPlanContainer?.items || []}
                   planContainerName={currentPlanContainer?.name}
-                  planContainerId={selectedPlanContainerId}
+                  planContainerId={currentPlanContainer?.id}
                   cancelledItemIds={cancelledItemIds}
                   onUpdate={(updates) => handleUpdateItem(item.id, updates)}
                   onRemove={() => handleRemoveItem(item.id)}

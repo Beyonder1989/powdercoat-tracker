@@ -4,8 +4,33 @@ import { getSupabase } from '../lib/supabase';
 
 const CLOSED_ITEMS_STORAGE_KEY = 'powdercoat_closed_plan_items';
 const CANCELLED_ITEMS_STORAGE_KEY = 'powdercoat_cancelled_plan_items';
+const HIDDEN_CONTAINERS_STORAGE_KEY = 'powdercoat_hidden_containers';
+const CACHED_PLANS_STORAGE_KEY = 'powdercoat_cached_container_plans';
 const ACTIVE_CONTAINER_STORAGE_KEY = 'powdercoat_active_container_id';
 const DEFAULT_ACTIVE_CONTAINER = 'EL_SALVADOR';
+
+/**
+ * สร้างคีย์เฉพาะสำหรับตู้สินค้า (แยกตู้ที่ชื่อซ้ำกันแต่คนละวันที่ได้ เช่น SOUTH AFICA 27/11 vs เดือน 12)
+ */
+export const makeContainerKey = (plan: Pick<ContainerPlan, 'id' | 'date'>): string => {
+  const cleanId = (plan.id || '').trim().toUpperCase();
+  const cleanDate = (plan.date || '').trim().toUpperCase();
+  return cleanDate ? `${cleanId}::${cleanDate}` : cleanId;
+};
+
+// ดึงแผนตู้สินค้าล่าสุด (จากแคชที่ซิงค์ไว้ หรือค่าเริ่มต้น)
+export const getCachedContainerPlans = (): ContainerPlan[] => {
+  try {
+    const raw = localStorage.getItem(CACHED_PLANS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to read cached container plans:', e);
+  }
+  return INITIAL_CONTAINER_PLANS;
+};
 
 export const GOOGLE_SHEET_CSV_URL = 
   'https://docs.google.com/spreadsheets/d/1hZa5qYVzlQJlTOZGWgFz1SnE8-QbJywf/export?format=csv&gid=1962169336';
@@ -180,6 +205,77 @@ export const saveCancelledPlanItemIds = async (cancelledIds: string[]): Promise<
   }
 };
 
+// ดึงรายการคีย์ตู้สินค้าที่ถูกซ่อนไว้ (ซิงค์กับ Supabase Cloud)
+export const fetchHiddenContainerKeys = async (): Promise<string[]> => {
+  const localData = localStorage.getItem(HIDDEN_CONTAINERS_STORAGE_KEY);
+  let localList: string[] = [];
+  try {
+    localList = localData ? JSON.parse(localData) : [];
+  } catch {
+    localList = [];
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) return localList;
+
+  try {
+    const { data, error } = await supabase
+      .from('powdercoat_jobs')
+      .select('notes')
+      .eq('id', 'SYSTEM_CONFIG_HIDDEN_CONTAINERS')
+      .maybeSingle();
+
+    if (!error && data && data.notes) {
+      const cloudList: string[] = JSON.parse(data.notes);
+      if (Array.isArray(cloudList)) {
+        localStorage.setItem(HIDDEN_CONTAINERS_STORAGE_KEY, JSON.stringify(cloudList));
+        return cloudList;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch hidden containers from Supabase:', e);
+  }
+
+  return localList;
+};
+
+// บันทึกรายการคีย์ตู้สินค้าที่ถูกซ่อนไว้ (ซิงค์กับ Supabase Cloud)
+export const saveHiddenContainerKeys = async (hiddenKeys: string[]): Promise<boolean> => {
+  const uniqueKeys = Array.from(new Set(hiddenKeys.filter(Boolean)));
+  localStorage.setItem(HIDDEN_CONTAINERS_STORAGE_KEY, JSON.stringify(uniqueKeys));
+
+  const supabase = getSupabase();
+  if (!supabase) return true;
+
+  try {
+    const { error } = await supabase
+      .from('powdercoat_jobs')
+      .upsert({
+        id: 'SYSTEM_CONFIG_HIDDEN_CONTAINERS',
+        tracking_code: 'SYS-PLAN-HIDDEN',
+        sender_department: 'SYSTEM',
+        model_part_no: 'SYSTEM_PLAN_HIDDEN',
+        part_name: 'บันทึกรายการตู้ที่ซ่อนการแสดงผล',
+        sender_name: 'SYSTEM',
+        container_no: 'SYS',
+        quantity: uniqueKeys.length,
+        status: 'RECEIVED',
+        notes: JSON.stringify(uniqueKeys),
+        receiver_name: 'SYSTEM',
+        created_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.warn('Failed to sync hidden containers to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Error saving hidden containers to Supabase:', e);
+    return false;
+  }
+};
+
 // ดึงรหัสตู้ปัจจุบันที่กำลังทำงาน
 export const getActiveContainerId = (): string => {
   return localStorage.getItem(ACTIVE_CONTAINER_STORAGE_KEY) || DEFAULT_ACTIVE_CONTAINER;
@@ -191,10 +287,12 @@ export const setActiveContainerId = (containerId: string): void => {
 
 // คำนวณโมเดลที่ซ้ำในตู้ถัดๆ ไป (Cross-Container Match)
 export const getCrossContainerMatches = (
-  currentContainerId: string,
+  currentContainerIdOrKey: string,
   plans: ContainerPlan[] = INITIAL_CONTAINER_PLANS
 ): Map<string, Array<{ containerName: string; containerDate?: string; qty: number }>> => {
-  const currentIdx = plans.findIndex((p) => p.id === currentContainerId);
+  const currentIdx = plans.findIndex(
+    (p) => makeContainerKey(p) === currentContainerIdOrKey || p.id === currentContainerIdOrKey
+  );
   if (currentIdx === -1) return new Map();
 
   const futureContainers = plans.slice(currentIdx + 1);
@@ -298,6 +396,11 @@ export const syncPlansFromGoogleSheet = async (): Promise<{
     }
 
     if (containers.length > 0) {
+      try {
+        localStorage.setItem(CACHED_PLANS_STORAGE_KEY, JSON.stringify(containers));
+      } catch (e) {
+        console.warn('Failed to cache synced plans:', e);
+      }
       return { success: true, plans: containers };
     }
     return { success: false, plans: INITIAL_CONTAINER_PLANS, message: 'ไม่พบรายการตู้จากชีต' };
