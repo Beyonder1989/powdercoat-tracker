@@ -3,7 +3,7 @@ import {
   Layers, Package, CheckCircle2, Clock, AlertCircle, RefreshCw, 
   ExternalLink, Search, ChevronDown, Check, ArrowRight, Bell, 
   Flame, Filter, Undo2, Calendar, FileSpreadsheet, Sparkles, Ban,
-  SlidersHorizontal, Eye, EyeOff, X
+  SlidersHorizontal, Eye, EyeOff, X, Lock
 } from 'lucide-react';
 import { ContainerPlan, PlanItem, PowderCoatJob } from '../types';
 import { 
@@ -366,6 +366,30 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
 
   return (
     <div className="space-y-6 pb-16">
+      {/* Read-Only Banner for Outside Viewers (ต้องล็อกอินก่อนปิดรายการ/ยกเลิก/จัดการตู้) */}
+      {!isOperator && (
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-orange-500/40 rounded-2xl px-4 sm:px-5 py-3 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center space-x-2.5 text-slate-300">
+            <span className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400 shrink-0">
+              <Lock className="w-4 h-4" />
+            </span>
+            <span className="font-medium">
+              {lang === 'my'
+                ? 'ကြည့်ရှုရန်သာ (စာရင်းပိတ်ရန် သို့မဟုတ် ဖျက်သိမ်းရန် ဝန်ထမ်း PIN ဖြင့် ဝင်ရောက်ပါ)'
+                : 'โหมดดูข้อมูลอย่างเดียว • กรุณาล็อกอินด้วย PIN เพื่อปิดรายการ ยกเลิกผลิต หรือจัดการตู้สินค้า'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => openPinModal()}
+            className="px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-all shadow-md shadow-orange-600/30 flex items-center space-x-1.5 shrink-0 self-end sm:self-auto"
+          >
+            <span>🔑</span>
+            <span>{t.btnUnlock}</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. Header Banner & Container Selector */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
         {/* Decorative background glow */}
@@ -913,9 +937,19 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                     </div>
                   </div>
 
-                  {/* Right: Actions (Close / Cancel / Reopen) */}
+                  {/* Right: Actions (Close / Cancel / Reopen — เฉพาะผู้ที่ล็อกอินแล้วเท่านั้น) */}
                   <div className="shrink-0 flex items-center space-x-2">
-                    {isCancelled ? (
+                    {!isOperator ? (
+                      <button
+                        type="button"
+                        onClick={() => openPinModal()}
+                        className="px-3 py-2 rounded-xl border border-slate-700/80 bg-slate-800/70 hover:bg-slate-800 hover:border-orange-500/50 text-slate-400 hover:text-orange-300 text-xs font-medium transition-colors flex items-center space-x-1.5"
+                        title="กรุณาล็อกอินด้วย PIN ก่อนปิดรายการหรือยกเลิกการผลิต"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-orange-400/80" />
+                        <span>{lang === 'my' ? 'လော့ဂ်အင်ဝင်ရန်' : 'ล็อกอินเพื่อจัดการ'}</span>
+                      </button>
+                    ) : isCancelled ? (
                       <button
                         type="button"
                         onClick={() => handleToggleCancel(item.id, item.modelPartNo)}
