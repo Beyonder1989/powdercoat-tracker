@@ -845,7 +845,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                       {isCancelled ? (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-700">
                           <Ban className="w-3.5 h-3.5 text-rose-400" />
-                          <span>{lang === 'my' ? 'ထုတ်လုပ်မှု ဖျက်သိမ်းသည်' : '🚫 แผนกวางแผนยกเลิกผลิต'}</span>
+                          <span>{lang === 'my' ? 'ထုတ်လုပ်မှု ဖျက်သိမ်းသည်' : 'แผนกวางแผนยกเลิกผลิต'}</span>
                         </span>
                       ) : isClosed ? (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
@@ -957,7 +957,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                         title="คืนรายการนี้กลับมาวางแผนผลิตตามปกติ"
                       >
                         <Undo2 className="w-3.5 h-3.5 text-rose-400" />
-                        <span>{lang === 'my' ? 'ပြန်လည်ထုတ်လုပ်မည်' : '↩️ คืนรายการผลิต'}</span>
+                        <span>{lang === 'my' ? 'ပြန်လည်ထုတ်လုပ်မည်' : 'คืนรายการผลิต'}</span>
                       </button>
                     ) : isClosed ? (
                       <button
@@ -992,7 +992,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                           title="ฝ่ายวางแผนแจ้งยกเลิกโมเดลนี้ในตู้นี้"
                         >
                           <Ban className="w-3.5 h-3.5 text-rose-400" />
-                          <span>{lang === 'my' ? 'ဖျက်သိမ်း' : '🚫 ยกเลิกผลิต'}</span>
+                          <span>{lang === 'my' ? 'ဖျက်သိမ်း' : 'ยกเลิกผลิต'}</span>
                         </button>
                       </>
                     )}
