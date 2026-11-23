@@ -3,6 +3,7 @@ import { INITIAL_CONTAINER_PLANS } from '../data/initialContainerPlans';
 import { getSupabase } from '../lib/supabase';
 
 const CLOSED_ITEMS_STORAGE_KEY = 'powdercoat_closed_plan_items';
+const CANCELLED_ITEMS_STORAGE_KEY = 'powdercoat_cancelled_plan_items';
 const ACTIVE_CONTAINER_STORAGE_KEY = 'powdercoat_active_container_id';
 const DEFAULT_ACTIVE_CONTAINER = 'EL_SALVADOR';
 
@@ -109,6 +110,72 @@ export const saveClosedPlanItemIds = async (closedIds: string[]): Promise<boolea
     return true;
   } catch (e) {
     console.error('Error saving closed plan items to Supabase:', e);
+    return false;
+  }
+};
+
+// ดึงรายการ ID ชิ้นงานที่ถูกยกเลิกการผลิต (ซิงค์กับ Supabase Cloud)
+export const fetchCancelledPlanItemIds = async (): Promise<string[]> => {
+  const localData = localStorage.getItem(CANCELLED_ITEMS_STORAGE_KEY);
+  let localList: string[] = localData ? JSON.parse(localData) : [];
+  localList = Array.from(new Set(localList.map(normalizeClosedItemId).filter(Boolean)));
+
+  const supabase = getSupabase();
+  if (!supabase) return localList;
+
+  try {
+    const { data, error } = await supabase
+      .from('powdercoat_jobs')
+      .select('notes')
+      .eq('id', 'SYSTEM_CONFIG_CANCELLED_PLAN_ITEMS')
+      .maybeSingle();
+
+    if (!error && data && data.notes) {
+      const rawCloudList: string[] = JSON.parse(data.notes);
+      const normalizedCloudList = Array.from(new Set(rawCloudList.map(normalizeClosedItemId).filter(Boolean)));
+      localStorage.setItem(CANCELLED_ITEMS_STORAGE_KEY, JSON.stringify(normalizedCloudList));
+      return normalizedCloudList;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch cancelled plan items from Supabase:', e);
+  }
+
+  return localList;
+};
+
+// บันทึกรายการชิ้นงานที่ถูกยกเลิกการผลิต (ซิงค์กับ Supabase Cloud)
+export const saveCancelledPlanItemIds = async (cancelledIds: string[]): Promise<boolean> => {
+  const normalizedIds = Array.from(new Set(cancelledIds.map(normalizeClosedItemId).filter(Boolean)));
+  localStorage.setItem(CANCELLED_ITEMS_STORAGE_KEY, JSON.stringify(normalizedIds));
+
+  const supabase = getSupabase();
+  if (!supabase) return true;
+
+  try {
+    const { error } = await supabase
+      .from('powdercoat_jobs')
+      .upsert({
+        id: 'SYSTEM_CONFIG_CANCELLED_PLAN_ITEMS',
+        tracking_code: 'SYS-PLAN-CANCELLED',
+        sender_department: 'SYSTEM',
+        model_part_no: 'SYSTEM_PLAN_CANCELLED',
+        part_name: 'บันทึกรายการตู้ที่ยกเลิกการผลิต',
+        sender_name: 'SYSTEM',
+        container_no: 'SYS',
+        quantity: normalizedIds.length,
+        status: 'RECEIVED',
+        notes: JSON.stringify(normalizedIds),
+        receiver_name: 'SYSTEM',
+        created_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.warn('Failed to sync cancelled items to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('Error saving cancelled plan items to Supabase:', e);
     return false;
   }
 };

@@ -2,13 +2,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Layers, Package, CheckCircle2, Clock, AlertCircle, RefreshCw, 
   ExternalLink, Search, ChevronDown, Check, ArrowRight, Bell, 
-  Flame, Filter, Undo2, Calendar, FileSpreadsheet, Sparkles
+  Flame, Filter, Undo2, Calendar, FileSpreadsheet, Sparkles, Ban
 } from 'lucide-react';
 import { ContainerPlan, PlanItem, PowderCoatJob } from '../types';
 import { INITIAL_CONTAINER_PLANS } from '../data/initialContainerPlans';
 import { 
   fetchClosedPlanItemIds, 
   saveClosedPlanItemIds, 
+  fetchCancelledPlanItemIds,
+  saveCancelledPlanItemIds,
   getActiveContainerId, 
   setActiveContainerId, 
   getCrossContainerMatches,
@@ -32,17 +34,21 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   const [plans, setPlans] = useState<ContainerPlan[]>(INITIAL_CONTAINER_PLANS);
   const [selectedContainerId, setSelectedContainerId] = useState<string>(getActiveContainerId);
   const [closedItemIds, setClosedItemIds] = useState<Set<string>>(new Set());
+  const [cancelledItemIds, setCancelledItemIds] = useState<Set<string>>(new Set());
   
   // UI States
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterMode, setFilterMode] = useState<'ALL' | 'PENDING' | 'CLOSED' | 'HAS_FUTURE'>('ALL');
+  const [filterMode, setFilterMode] = useState<'ALL' | 'PENDING' | 'CLOSED' | 'CANCELLED' | 'HAS_FUTURE'>('ALL');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  // โหลดรายการ ID ที่ปิดยอดแล้วจาก Cloud / LocalStorage พร้อม Normalize เป็น Unique Key
+  // โหลดรายการ ID ที่ปิดยอดแล้ว และที่ถูกยกเลิกการผลิตจาก Cloud / LocalStorage พร้อม Normalize เป็น Unique Key
   useEffect(() => {
     fetchClosedPlanItemIds().then((ids) => {
       setClosedItemIds(new Set(ids.map(normalizeClosedItemId).filter(Boolean)));
+    });
+    fetchCancelledPlanItemIds().then((ids) => {
+      setCancelledItemIds(new Set(ids.map(normalizeClosedItemId).filter(Boolean)));
     });
   }, []);
 
@@ -66,6 +72,18 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       closedItemIds.has(k2) ||
       closedItemIds.has(it.id) ||
       closedItemIds.has(normalizeClosedItemId(it.id))
+    );
+  };
+
+  // ตรวจสอบว่าโมเดลนี้ในตู้นี้ถูกฝ่ายวางแผนยกเลิกการผลิตหรือไม่
+  const checkIsItemCancelled = (it: PlanItem): boolean => {
+    const k1 = makePlanItemKey(selectedContainer.id, it.modelPartNo);
+    const k2 = makePlanItemKey(selectedContainer.name, it.modelPartNo);
+    return (
+      cancelledItemIds.has(k1) ||
+      cancelledItemIds.has(k2) ||
+      cancelledItemIds.has(it.id) ||
+      cancelledItemIds.has(normalizeClosedItemId(it.id))
     );
   };
 
@@ -99,13 +117,74 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       nextClosed.delete(normalizedOldId);
     } else {
       nextClosed.add(itemKey1);
+      // หากเคยถูกยกเลิก ให้ปลดออกจากยกเลิก
+      if (
+        cancelledItemIds.has(itemKey1) ||
+        cancelledItemIds.has(itemKey2) ||
+        cancelledItemIds.has(itemId) ||
+        cancelledItemIds.has(normalizedOldId)
+      ) {
+        const nextCancelled = new Set(cancelledItemIds);
+        nextCancelled.delete(itemKey1);
+        nextCancelled.delete(itemKey2);
+        nextCancelled.delete(itemId);
+        nextCancelled.delete(normalizedOldId);
+        setCancelledItemIds(nextCancelled);
+        await saveCancelledPlanItemIds(Array.from(nextCancelled));
+      }
     }
 
     setClosedItemIds(nextClosed);
     await saveClosedPlanItemIds(Array.from(nextClosed));
   };
 
-  // ฟังก์ชันซิงค์ข้อมูลสดจาก Google Sheet (คงสถานะปิดรายการเดิมไว้ 100%)
+  // Toggle ยกเลิก/คืนรายการการผลิตโมเดลนี้ (Cancel Plan Model)
+  const handleToggleCancel = async (itemId: string, modelPartNo: string) => {
+    if (!isOperator) {
+      openPinModal();
+      return;
+    }
+
+    const itemKey1 = makePlanItemKey(selectedContainer.id, modelPartNo);
+    const itemKey2 = makePlanItemKey(selectedContainer.name, modelPartNo);
+    const normalizedOldId = normalizeClosedItemId(itemId);
+
+    const isCurrentlyCancelled =
+      cancelledItemIds.has(itemKey1) ||
+      cancelledItemIds.has(itemKey2) ||
+      cancelledItemIds.has(itemId) ||
+      cancelledItemIds.has(normalizedOldId);
+
+    const nextCancelled = new Set(cancelledItemIds);
+    if (isCurrentlyCancelled) {
+      nextCancelled.delete(itemKey1);
+      nextCancelled.delete(itemKey2);
+      nextCancelled.delete(itemId);
+      nextCancelled.delete(normalizedOldId);
+    } else {
+      nextCancelled.add(itemKey1);
+      // หากเคยถูกปิดยอด ให้ปลดออกจากปิดยอด
+      if (
+        closedItemIds.has(itemKey1) ||
+        closedItemIds.has(itemKey2) ||
+        closedItemIds.has(itemId) ||
+        closedItemIds.has(normalizedOldId)
+      ) {
+        const nextClosed = new Set(closedItemIds);
+        nextClosed.delete(itemKey1);
+        nextClosed.delete(itemKey2);
+        nextClosed.delete(itemId);
+        nextClosed.delete(normalizedOldId);
+        setClosedItemIds(nextClosed);
+        await saveClosedPlanItemIds(Array.from(nextClosed));
+      }
+    }
+
+    setCancelledItemIds(nextCancelled);
+    await saveCancelledPlanItemIds(Array.from(nextCancelled));
+  };
+
+  // ฟังก์ชันซิงค์ข้อมูลสดจาก Google Sheet (คงสถานะปิดรายการเดิม และรายการยกเลิกเดิมไว้ 100%)
   const handleSyncGoogleSheet = async () => {
     setIsSyncing(true);
     setSyncMessage(null);
@@ -113,13 +192,15 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       const res = await syncPlansFromGoogleSheet();
       if (res.success && res.plans.length > 0) {
         setPlans(res.plans);
-        // ดึงและผสานสถานะปิดรายการล่าสุด เพื่อไม่ให้สถานะที่เคยปิดไว้หลุดหาย
+        // ดึงและผสานสถานะปิดรายการและสถานะยกเลิก เพื่อไม่ให้สถานะหลุดหาย
         const latestClosed = await fetchClosedPlanItemIds();
         setClosedItemIds(new Set(latestClosed.map(normalizeClosedItemId).filter(Boolean)));
+        const latestCancelled = await fetchCancelledPlanItemIds();
+        setCancelledItemIds(new Set(latestCancelled.map(normalizeClosedItemId).filter(Boolean)));
         setSyncMessage(
           lang === 'my' 
-            ? 'Google Sheet မှ အောင်မြင်စွာ ရယူပြီးပါပြီ (ပိတ်ပြီးသားစာရင်းများ မပျောက်ပါ)' 
-            : 'ซิงค์แผนงานล่าสุดจาก Google Sheet สำเร็จ (คงสถานะตรวจปิดยอดเดิมไว้ 100%)'
+            ? 'Google Sheet မှ အောင်မြင်စွာ ရယူပြီးပါပြီ (ပိတ်ပြီး/ဖျက်သိမ်းပြီး စာရင်းများ မပျောက်ပါ)' 
+            : 'ซิงค์แผนงานล่าสุดจาก Google Sheet สำเร็จ (คงสถานะปิดยอด & ยกเลิกเดิมไว้ 100%)'
         );
       } else {
         setSyncMessage(res.message || 'ใช้ข้อมูลแผนงานล่าสุดในระบบ');
@@ -137,10 +218,13 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     const totalItems = selectedContainer.items.length;
     const totalPlanSets = selectedContainer.items.reduce((s, it) => s + (it.planQty || 1), 0);
     let closedCount = 0;
+    let cancelledCount = 0;
     let hasFutureCount = 0;
 
     selectedContainer.items.forEach((it) => {
-      if (checkIsItemClosed(it)) {
+      if (checkIsItemCancelled(it)) {
+        cancelledCount++;
+      } else if (checkIsItemClosed(it)) {
         closedCount++;
       }
       if (crossMatches.has(it.modelPartNo.trim())) {
@@ -148,19 +232,21 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       }
     });
 
-    const pendingCount = totalItems - closedCount;
-    return { totalItems, totalPlanSets, closedCount, pendingCount, hasFutureCount };
-  }, [selectedContainer, closedItemIds, crossMatches]);
+    const pendingCount = Math.max(0, totalItems - closedCount - cancelledCount);
+    return { totalItems, totalPlanSets, closedCount, cancelledCount, pendingCount, hasFutureCount };
+  }, [selectedContainer, closedItemIds, cancelledItemIds, crossMatches]);
 
   // กรองรายการชิ้นงานในตู้ตามค้นหาและสถานะ
   const filteredItems = useMemo(() => {
     return selectedContainer.items.filter((item) => {
       const isClosed = checkIsItemClosed(item);
+      const isCancelled = checkIsItemCancelled(item);
       const hasFuture = crossMatches.has(item.modelPartNo.trim());
 
       // Filter Mode
-      if (filterMode === 'PENDING' && isClosed) return false;
+      if (filterMode === 'PENDING' && (isClosed || isCancelled)) return false;
       if (filterMode === 'CLOSED' && !isClosed) return false;
+      if (filterMode === 'CANCELLED' && !isCancelled) return false;
       if (filterMode === 'HAS_FUTURE' && !hasFuture) return false;
 
       // Search Query
@@ -174,7 +260,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
 
       return true;
     });
-  }, [selectedContainer, closedItemIds, crossMatches, filterMode, searchQuery]);
+  }, [selectedContainer, closedItemIds, cancelledItemIds, crossMatches, filterMode, searchQuery]);
 
   // ค้นหาข้ามตู้ (กรณีผู้ใช้พิมพ์ค้นหาโมเดล แล้วอยากรู้ว่ามีในตู้ไหนบ้าง)
   const globalModelSearchResults = useMemo(() => {
@@ -300,8 +386,8 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
         </div>
       </div>
 
-      {/* 3. Container Status Overview Cards (4 KPIs) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 3. Container Status Overview Cards (5 KPIs) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* KPI 1: Total Models in this container */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
@@ -344,14 +430,33 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
           </div>
         </div>
 
-        {/* KPI 4: Models appearing in future containers */}
+        {/* KPI 4: Cancelled items */}
+        <div 
+          onClick={() => setFilterMode('CANCELLED')}
+          className="bg-slate-900 border border-slate-800 hover:border-rose-500/60 rounded-2xl p-4 shadow-lg cursor-pointer transition-all group"
+        >
+          <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+            <span className="group-hover:text-rose-300 transition-colors">
+              {lang === 'my' ? 'ဖျက်သိမ်းထားသည်' : 'ยกเลิกการผลิต'}
+            </span>
+            <Ban className="w-4 h-4 text-rose-400 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-rose-400 font-mono">
+            {stats.cancelledCount} <span className="text-xs font-sans font-normal text-slate-400">โมเดล</span>
+          </div>
+          <div className="text-[11px] text-rose-300/90 mt-1">
+            {stats.cancelledCount > 0 ? '🚫 วางแผนยกเลิก (แตะเพื่อกรอง)' : 'ไม่มีรายการยกเลิก'}
+          </div>
+        </div>
+
+        {/* KPI 5: Models appearing in future containers */}
         <div 
           onClick={() => setFilterMode('HAS_FUTURE')}
-          className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 rounded-2xl p-4 shadow-lg cursor-pointer transition-all group"
+          className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 rounded-2xl p-4 shadow-lg cursor-pointer transition-all group col-span-2 sm:col-span-1"
         >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="group-hover:text-amber-300 transition-colors">
-              {lang === 'my' ? 'နောက်ကွန်တိန်နာတွင် တူညီသော မော်ဒယ်' : 'โมเดลที่ซ้ำในตู้ถัดไป'}
+              {lang === 'my' ? 'နောက်ကွန်တိန်နာတွင် တူညီသော မော်ဒယ်' : 'โมเดลซ้ำในตู้ถัดไป'}
             </span>
             <Bell className="w-4 h-4 text-amber-400 group-hover:animate-bounce" />
           </div>
@@ -359,7 +464,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             {stats.hasFutureCount} <span className="text-xs font-sans font-normal text-slate-400">โมเดล</span>
           </div>
           <div className="text-[11px] text-amber-300/90 mt-1 flex items-center space-x-1">
-            <span>🔔 มีในตู้ถัดๆ ไปด้วย (แตะเพื่อกรองดู)</span>
+            <span>🔔 มีในตู้ถัดๆ ไป (แตะดูกรอง)</span>
           </div>
         </div>
       </div>
@@ -426,6 +531,18 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             </button>
 
             <button
+              onClick={() => setFilterMode('CANCELLED')}
+              className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
+                filterMode === 'CANCELLED'
+                  ? 'bg-rose-600 text-white shadow'
+                  : 'bg-slate-800 text-rose-400 hover:bg-slate-700 border border-slate-700'
+              }`}
+            >
+              <Ban className="w-3.5 h-3.5" />
+              <span>{lang === 'my' ? 'ဖျက်သိမ်းပြီး' : 'ยกเลิกผลิต'} ({stats.cancelledCount})</span>
+            </button>
+
+            <button
               onClick={() => setFilterMode('HAS_FUTURE')}
               className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
                 filterMode === 'HAS_FUTURE'
@@ -481,6 +598,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
         ) : (
           filteredItems.map((item, index) => {
             const isClosed = checkIsItemClosed(item);
+            const isCancelled = checkIsItemCancelled(item);
             const futureMatches = crossMatches.get(item.modelPartNo.trim()) || [];
             const hasFuture = futureMatches.length > 0;
             const totalFutureQty = futureMatches.reduce((sum, f) => sum + f.qty, 0);
@@ -532,7 +650,9 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
               <div
                 key={item.id}
                 className={`border rounded-2xl p-4 sm:p-5 transition-all shadow-md relative overflow-hidden ${
-                  isClosed
+                  isCancelled
+                    ? 'bg-slate-900/60 border-rose-900/80 opacity-80'
+                    : isClosed
                     ? 'bg-slate-900/60 border-slate-800/80 opacity-75'
                     : isPlanComplete
                     ? 'bg-slate-900 border-emerald-500/60 hover:border-emerald-400 shadow-emerald-950/30'
@@ -548,12 +668,17 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                       <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                         #{index + 1}
                       </span>
-                      <h3 className={`font-mono font-black text-base sm:text-lg tracking-wide ${isClosed ? 'line-through text-slate-400' : 'text-white'}`}>
+                      <h3 className={`font-mono font-black text-base sm:text-lg tracking-wide ${isCancelled ? 'line-through text-rose-400/80' : isClosed ? 'line-through text-slate-400' : 'text-white'}`}>
                         {item.modelPartNo}
                       </h3>
 
                       {/* Status Badge */}
-                      {isClosed ? (
+                      {isCancelled ? (
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-700">
+                          <Ban className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{lang === 'my' ? 'ထုတ်လုပ်မှု ဖျက်သိမ်းသည်' : '🚫 แผนกวางแผนยกเลิกผลิต'}</span>
+                        </span>
+                      ) : isClosed ? (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{lang === 'my' ? 'စစ်ဆေးပြီး' : 'ปิดยอดแล้ว'}</span>
@@ -639,9 +764,19 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                     </div>
                   </div>
 
-                  {/* Right: Close / Reopen Action Button */}
+                  {/* Right: Actions (Close / Cancel / Reopen) */}
                   <div className="shrink-0 flex items-center space-x-2">
-                    {isClosed ? (
+                    {isCancelled ? (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCancel(item.id, item.modelPartNo)}
+                        className="px-3 py-2 rounded-xl border border-rose-700/80 bg-rose-950/50 hover:bg-rose-900/70 text-rose-200 text-xs font-semibold transition-colors flex items-center space-x-1.5 shadow"
+                        title="คืนรายการนี้กลับมาวางแผนผลิตตามปกติ"
+                      >
+                        <Undo2 className="w-3.5 h-3.5 text-rose-400" />
+                        <span>{lang === 'my' ? 'ပြန်လည်ထုတ်လုပ်မည်' : '↩️ คืนรายการผลิต'}</span>
+                      </button>
+                    ) : isClosed ? (
                       <button
                         type="button"
                         onClick={() => handleToggleClose(item.id, item.modelPartNo)}
@@ -652,19 +787,31 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                         <span>{lang === 'my' ? 'ပြန်ဖွင့်မည်' : 'เปิดรายการใหม่'}</span>
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleToggleClose(item.id, item.modelPartNo)}
-                        className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs transition-all flex items-center space-x-1.5 ${
-                          isPlanComplete
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 scale-105'
-                            : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-md shadow-emerald-950/50'
-                        }`}
-                        title="ตรวจสอบร่วมกับแผนกวางแผนแล้ว กดปิดรายการนี้"
-                      >
-                        <Check className="w-4 h-4 stroke-[3]" />
-                        <span>{lang === 'my' ? 'စစ်ဆေးပြီး ပိတ်မည်' : 'ตรวจแล้ว ปิดรายการ'}</span>
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleClose(item.id, item.modelPartNo)}
+                          className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-white font-bold text-xs transition-all flex items-center space-x-1.5 ${
+                            isPlanComplete
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 scale-105'
+                              : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-md shadow-emerald-950/50'
+                          }`}
+                          title="ตรวจสอบร่วมกับแผนกวางแผนแล้ว กดปิดรายการนี้"
+                        >
+                          <Check className="w-4 h-4 stroke-[3]" />
+                          <span>{lang === 'my' ? 'စစ်ဆေးပြီး ပိတ်မည်' : 'ตรวจแล้ว ปิดรายการ'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCancel(item.id, item.modelPartNo)}
+                          className="px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-rose-800/80 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-rose-100 text-xs font-semibold transition-all flex items-center space-x-1"
+                          title="ฝ่ายวางแผนแจ้งยกเลิกโมเดลนี้ในตู้นี้"
+                        >
+                          <Ban className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{lang === 'my' ? 'ဖျက်သိမ်း' : '🚫 ยกเลิกผลิต'}</span>
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
