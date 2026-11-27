@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert, Droplets, Sparkles } from 'lucide-react';
+import { Search, Eye, ArrowRight, CheckCircle2, Clock, RefreshCw, LayoutGrid, Table as TableIcon, Trash2, Package, Flame, Zap, ShieldAlert, Droplets, Sparkles, Undo2 } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
+import { getPartTypeLabel } from '../data/masterData';
 
 interface JobTrackerProps {
   jobs: PowderCoatJob[];
@@ -14,6 +15,7 @@ interface JobTrackerProps {
   onOpenDispatch: (job: PowderCoatJob) => void;
   onOpenStartCoating?: (job: PowderCoatJob) => void;
   onOpenFinishCoating?: (job: PowderCoatJob) => void;
+  onRevertStatus?: (job: PowderCoatJob) => void;
   onDeleteJob: (jobId: string) => void;
   initialFilter?: JobStatus | 'ALL' | 'URGENT_ONLY';
 }
@@ -28,6 +30,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   onOpenDispatch,
   onOpenStartCoating,
   onOpenFinishCoating,
+  onRevertStatus,
   onDeleteJob,
   initialFilter = 'ALL',
 }) => {
@@ -443,7 +446,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                       {job.model_part_no}
                     </h3>
                     <p className="text-sm font-semibold text-orange-300 mt-0.5">
-                      {job.part_name}
+                      {getPartTypeLabel(job.part_name, lang)}
                     </p>
                   </div>
 
@@ -614,6 +617,16 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           </span>
                         )}
 
+                        {onRevertStatus && job.status !== 'RECEIVED' && (
+                          <button
+                            onClick={() => onRevertStatus(job)}
+                            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-amber-950/70 text-slate-400 hover:text-amber-300 border border-slate-700/80 hover:border-amber-600/60 transition-colors"
+                            title={lang === 'my' ? 'ယခင်အခြေအနေသို့ ပြန်ပြောင်းမည်' : 'ย้อนกลับสถานะก่อนหน้า (กรณีกดผิด)'}
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             if (confirm(`${t.deleteJobConfirm} (${job.tracking_code})`)) {
@@ -689,7 +702,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-bold text-white font-mono">{job.model_part_no}</div>
-                        <div className="text-orange-300 text-xs">{job.part_name}</div>
+                        <div className="text-orange-300 text-xs">{getPartTypeLabel(job.part_name, lang)}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-slate-200">{job.sender_department}</div>
@@ -788,6 +801,16 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                                   className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold"
                                 >
                                   {t.btnHandoverPacking}
+                                </button>
+                              )}
+
+                              {onRevertStatus && job.status !== 'RECEIVED' && (
+                                <button
+                                  onClick={() => onRevertStatus(job)}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-950/70 text-slate-400 hover:text-amber-300 border border-slate-700 hover:border-amber-600/60 transition-colors"
+                                  title={lang === 'my' ? 'ယခင်အခြေအနေသို့ ပြန်ပြောင်းမည်' : 'ย้อนกลับสถานะก่อนหน้า (กรณีกดผิด)'}
+                                >
+                                  <Undo2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
 

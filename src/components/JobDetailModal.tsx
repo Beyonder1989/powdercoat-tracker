@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert, Droplets, Sparkles, Paintbrush } from 'lucide-react';
+import { X, Calendar, Clock, Building2, User, Package, Hash, CheckCircle2, ArrowRight, ExternalLink, Download, Flame, Zap, ShieldAlert, Droplets, Sparkles, Paintbrush, Undo2 } from 'lucide-react';
 import { PowderCoatJob, JobStatus, JobPriority } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useRole } from '../context/RoleContext';
@@ -12,6 +12,7 @@ interface JobDetailModalProps {
   onOpenDispatch: (job: PowderCoatJob) => void;
   onOpenStartCoating?: (job: PowderCoatJob) => void;
   onOpenFinishCoating?: (job: PowderCoatJob) => void;
+  onRevertStatus?: (job: PowderCoatJob) => void;
 }
 
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
@@ -22,6 +23,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onOpenDispatch,
   onOpenStartCoating,
   onOpenFinishCoating,
+  onRevertStatus,
 }) => {
   const { lang, t } = useLanguage();
   const { isOperator } = useRole();
@@ -485,6 +487,17 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           <div className="flex items-center space-x-2">
             {isOperator && (
               <>
+                {onRevertStatus && job.status !== 'RECEIVED' && (
+                  <button
+                    onClick={() => onRevertStatus(job)}
+                    className="px-3.5 py-2 rounded-xl border border-amber-700/70 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 hover:text-amber-100 text-xs font-semibold transition-colors flex items-center space-x-1.5"
+                    title={lang === 'my' ? 'ယခင်အခြေအနေသို့ ပြန်ပြောင်းမည်' : 'ย้อนกลับสถานะก่อนหน้า (กรณีกดผิด)'}
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    <span>{lang === 'my' ? 'ယခင်အခြေအနေ ပြန်ပြောင်း' : 'ย้อนกลับสถานะก่อนหน้า'}</span>
+                  </button>
+                )}
+
                 {job.status === 'RECEIVED' && (
                   <button
                     onClick={() => {

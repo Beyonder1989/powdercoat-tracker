@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Check, Droplets, Sparkles, Paintbrush, AlertCircle, ChevronDown, Hash } from 'lucide-react';
 import { PowderCoatJob, CoatingType } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { getPartTypeLabel } from '../data/masterData';
 
 interface StartCoatingModalProps {
   job: PowderCoatJob;
@@ -102,7 +103,7 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
                 {job.model_part_no}
               </p>
               <p className="text-xs text-orange-300 truncate">
-                {job.part_name}
+                {getPartTypeLabel(job.part_name, lang)}
               </p>
             </div>
             <div className="text-right shrink-0 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
@@ -126,7 +127,7 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
                   </span>
                 </label>
                 <span className="text-[11px] text-sky-300/90 font-mono">
-                  (รับเข้าทั้งหมด {job.quantity} {t.pieceUnit})
+                  ({lang === 'my' ? 'စုစုပေါင်း' : 'รับเข้าทั้งหมด'} {job.quantity} {t.pieceUnit})
                 </span>
               </div>
 
@@ -189,7 +190,7 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
                         : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                     }`}
                   >
-                    ทั้งหมด ({job.quantity})
+                    {lang === 'my' ? 'အားလုံး' : 'ทั้งหมด'} ({job.quantity})
                   </button>
                 </div>
               </div>
@@ -198,15 +199,25 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
               {qtyToCoat < job.quantity && (
                 <div className="mt-1 p-2.5 rounded-lg bg-slate-900/90 border border-sky-500/40 text-[11px] space-y-1">
                   <div className="flex items-center justify-between text-amber-300 font-semibold">
-                    <span>🪝 ขึ้นพ่นแฮงค์เกอร์นี้ (กำลังพ่นสี):</span>
+                    <span>
+                      {lang === 'my'
+                        ? '🪝 ဤချိတ်တွင် ချိတ်ဆွဲမည် (ဆေးမှုတ်နေဆဲ):'
+                        : '🪝 ขึ้นพ่นแฮงค์เกอร์นี้ (กำลังพ่นสี):'}
+                    </span>
                     <span className="font-mono font-bold">{qtyToCoat} {t.pieceUnit}</span>
                   </div>
                   <div className="flex items-center justify-between text-sky-300">
-                    <span>⏳ คงเหลือรอขึ้นพ่นแฮงค์เกอร์ถัดไป:</span>
+                    <span>
+                      {lang === 'my'
+                        ? '⏳ နောက်ချိတ်အတွက် ကျန်ရှိမည်:'
+                        : '⏳ คงเหลือรอขึ้นพ่นแฮงค์เกอร์ถัดไป:'}
+                    </span>
                     <span className="font-mono font-bold">{job.quantity - qtyToCoat} {t.pieceUnit}</span>
                   </div>
                   <p className="text-[10px] text-slate-400 pt-0.5">
-                    * ระบบจะแยกการ์ดตามแฮงค์เกอร์ให้อัตโนมัติ เพื่อให้ปลดลงและติดตามแต่ละ Set ได้อิสระ
+                    {lang === 'my'
+                      ? '* စနစ်မှ ချိတ်နံပါတ်အလိုက် ကတ်ခွဲပေးမည်ဖြစ်၍ သီးခြားစီ ဖြုတ်ယူနိုင်သည်'
+                      : '* ระบบจะแยกการ์ดตามแฮงค์เกอร์ให้อัตโนมัติ เพื่อให้ปลดลงและติดตามแต่ละ Set ได้อิสระ'}
                   </p>
                 </div>
               )}
@@ -221,7 +232,7 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
                 <span>{t.labelHangerNo}</span>
               </label>
               <span className="text-[10px] sm:text-xs text-amber-400 font-medium">
-                (ล็อกเลข 1 - 99 ป้องกันพิมพ์ผิด)
+                {lang === 'my' ? '(နံပါတ် ၁ - ၉၉ သာ ရွေးနိုင်သည်)' : '(ล็อกเลข 1 - 99 ป้องกันพิมพ์ผิด)'}
               </span>
             </div>
 

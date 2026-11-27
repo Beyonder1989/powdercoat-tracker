@@ -207,6 +207,43 @@ export function App() {
     }
   };
 
+  // Handle revert / step-back status (ย้อนสถานะงานกลับ 1 ขั้นกรณีพนักงานกดผิด)
+  const handleRevertStatus = async (job: PowderCoatJob) => {
+    if (job.status === 'IN_PROGRESS') {
+      const msg =
+        lang === 'my'
+          ? `ဤအလုပ် "${job.model_part_no}" (${job.quantity} ခု) ကို 'ဆေးမှုတ်နေဆဲ' မှ 'ဆေးမှုတ်ရန်စောင့်ဆိုင်း' သို့ ပြန်ပြောင်းမည်လား?`
+          : `ยืนยันย้อนสถานะงาน "${job.model_part_no}" (${job.quantity} ชิ้น)\nจาก "กำลังพ่นสี" กลับไปเป็น "รอพ่นสี" ใช่หรือไม่?`;
+      if (!window.confirm(msg)) return;
+      await handleUpdateStatus(job.id, 'RECEIVED', {
+        hanger_no: null as any,
+        coating_started_at: null as any,
+      });
+    } else if (job.status === 'COMPLETED') {
+      const msg =
+        lang === 'my'
+          ? `ဤအလုပ် "${job.model_part_no}" (${job.quantity} ခု) ကို 'ဆေးမှုတ်ပြီး' မှ 'ဆေးမှုတ်နေဆဲ (လိုင်းပေါ်)' သို့ ပြန်ပြောင်းမည်လား?`
+          : `ยืนยันย้อนสถานะงาน "${job.model_part_no}" (${job.quantity} ชิ้น)\nจาก "พ่นสีเสร็จแล้ว" กลับไปเป็น "กำลังพ่นสี (อยู่บนไลน์)" ใช่หรือไม่?`;
+      if (!window.confirm(msg)) return;
+      await handleUpdateStatus(job.id, 'IN_PROGRESS', {
+        coating_finished_at: null as any,
+        coating_started_at: job.coating_started_at || new Date().toISOString(),
+      });
+    } else if (job.status === 'DISPATCHED_TO_PACKING') {
+      const msg =
+        lang === 'my'
+          ? `ဤအလုပ် "${job.model_part_no}" (${job.quantity} ခု) ကို 'လွှဲပြောင်းပြီး' မှ 'ဆေးမှုတ်ပြီး (လွှဲပြောင်းရန်စောင့်ဆိုင်း)' သို့ ပြန်ပြောင်းမည်လား?`
+          : `ยืนยันย้อนสถานะงาน "${job.model_part_no}" (${job.quantity} ชิ้น)\nจาก "ส่งมอบงานแล้ว" กลับไปเป็น "พ่นเสร็จแล้ว (รอส่งมอบ)" ใช่หรือไม่?`;
+      if (!window.confirm(msg)) return;
+      await handleUpdateStatus(job.id, 'COMPLETED', {
+        dispatched_at: null as any,
+        packing_receiver_name: null as any,
+        target_department: null as any,
+        coating_finished_at: job.coating_finished_at || new Date().toISOString(),
+      });
+    }
+  };
+
   // Handle dispatch confirmation to other departments (with Photos & Destination Dept)
   const handleConfirmDispatch = async (jobId: string, dispatchData: DispatchData) => {
     const updated = await updateJobStatus(jobId, 'DISPATCHED_TO_PACKING', {
@@ -306,6 +343,7 @@ export function App() {
             onOpenDispatch={setDispatchingJob}
             onOpenStartCoating={setStartCoatingJob}
             onOpenFinishCoating={handleOpenFinishCoating}
+            onRevertStatus={handleRevertStatus}
             onDeleteJob={handleDeleteJob}
             initialFilter="ALL"
           />
@@ -341,6 +379,8 @@ export function App() {
               onUpdatePriority={handleUpdatePriority}
               onOpenDispatch={setDispatchingJob}
               onOpenStartCoating={setStartCoatingJob}
+              onOpenFinishCoating={handleOpenFinishCoating}
+              onRevertStatus={handleRevertStatus}
               onDeleteJob={handleDeleteJob}
               initialFilter="ALL"
             />
@@ -379,6 +419,9 @@ export function App() {
           onOpenFinishCoating={(job) => {
             setSelectedJob(null);
             handleOpenFinishCoating(job);
+          }}
+          onRevertStatus={(job) => {
+            handleRevertStatus(job);
           }}
         />
       )}

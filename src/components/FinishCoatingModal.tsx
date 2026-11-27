@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, CheckCircle2, PackageCheck, Clock } from 'lucide-react';
 import { PowderCoatJob } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { getPartTypeLabel } from '../data/masterData';
 
 interface FinishCoatingModalProps {
   job: PowderCoatJob;
@@ -76,10 +77,12 @@ export const FinishCoatingModal: React.FC<FinishCoatingModalProps> = ({
               <p className="font-bold text-white text-sm font-mono truncate mt-1">
                 {job.model_part_no}
               </p>
-              <p className="text-xs text-orange-300 truncate">{job.part_name}</p>
+              <p className="text-xs text-orange-300 truncate">{getPartTypeLabel(job.part_name, lang)}</p>
             </div>
             <div className="text-right shrink-0 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-              <span className="text-[10px] text-slate-400 block">บนไลน์ทั้งหมด</span>
+              <span className="text-[10px] text-slate-400 block">
+                {lang === 'my' ? 'လိုင်းပေါ်စုစုပေါင်း' : 'บนไลน์ทั้งหมด'}
+              </span>
               <span className="text-base font-extrabold text-amber-400 font-mono">
                 {job.quantity} {t.pieceUnit}
               </span>
@@ -139,7 +142,7 @@ export const FinishCoatingModal: React.FC<FinishCoatingModalProps> = ({
                       : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                   }`}
                 >
-                  ทั้งหมด ({job.quantity})
+                  {lang === 'my' ? 'အားလုံး' : 'ทั้งหมด'} ({job.quantity})
                 </button>
               </div>
             </div>
@@ -149,7 +152,7 @@ export const FinishCoatingModal: React.FC<FinishCoatingModalProps> = ({
               <div className="flex items-center justify-between text-emerald-300 font-semibold">
                 <span className="flex items-center space-x-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>ปลดลงแล้ว (พ่นเสร็จพร้อมส่งมอบ):</span>
+                  <span>{lang === 'my' ? 'ဖြုတ်ပြီး (ဆေးမှုတ်ပြီး):' : 'ปลดลงแล้ว (พ่นเสร็จพร้อมส่งมอบ):'}</span>
                 </span>
                 <span className="font-mono font-bold">{unloadQty} {t.pieceUnit}</span>
               </div>
@@ -159,14 +162,18 @@ export const FinishCoatingModal: React.FC<FinishCoatingModalProps> = ({
                   <span className="flex items-center space-x-1.5">
                     <Clock className="w-3.5 h-3.5 text-amber-400" />
                     <span>
-                      คงค้างอยู่บนไลน์{job.hanger_no ? ` (แฮงค์เกอร์ #${job.hanger_no})` : ''}:
+                      {lang === 'my'
+                        ? `လိုင်းပေါ်တွင် ကျန်ရှိနေဆဲ${job.hanger_no ? ` (ချိတ် #${job.hanger_no})` : ''}:`
+                        : `คงค้างอยู่บนไลน์${job.hanger_no ? ` (แฮงค์เกอร์ #${job.hanger_no})` : ''}:`}
                     </span>
                   </span>
                   <span className="font-mono font-bold">{remainingOnLine} {t.pieceUnit}</span>
                 </div>
               ) : (
                 <p className="text-[11px] text-slate-400">
-                  ✨ ปลดชิ้นงานลงครบทั้งหมด {job.quantity} {t.pieceUnit} แล้ว
+                  {lang === 'my'
+                    ? `✨ ပစ္စည်းအားလုံး ${job.quantity} ${t.pieceUnit} ကို ဖြုတ်ပြီးပါပြီ`
+                    : `✨ ปลดชิ้นงานลงครบทั้งหมด ${job.quantity} ${t.pieceUnit} แล้ว`}
                 </p>
               )}
             </div>
@@ -188,8 +195,12 @@ export const FinishCoatingModal: React.FC<FinishCoatingModalProps> = ({
               <CheckCircle2 className="w-4 h-4" />
               <span>
                 {remainingOnLine > 0
-                  ? `ยืนยันปลดลง ${unloadQty} ${t.pieceUnit} (ค้างไลน์ ${remainingOnLine})`
-                  : `ยืนยันพ่นเสร็จทั้งหมด (${job.quantity} ${t.pieceUnit})`}
+                  ? (lang === 'my'
+                      ? `${unloadQty} ${t.pieceUnit} ဖြုတ်ပြီး အတည်ပြုမည် (လိုင်းပေါ် ${remainingOnLine} ကျန်)`
+                      : `ยืนยันปลดลง ${unloadQty} ${t.pieceUnit} (ค้างไลน์ ${remainingOnLine})`)
+                  : (lang === 'my'
+                      ? `အားလုံးပြီးစီးကြောင်း အတည်ပြုမည် (${job.quantity} ${t.pieceUnit})`
+                      : `ยืนยันพ่นเสร็จทั้งหมด (${job.quantity} ${t.pieceUnit})`)}
               </span>
             </button>
           </div>

@@ -4,7 +4,7 @@ import {
   Calendar, Clock, User, Package, Building2, Hash, FileText, 
   Flame, Zap, Plus, Trash2, Layers, Sparkles, Box, Edit3, Ban
 } from 'lucide-react';
-import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO } from '../data/masterData';
+import { DEPARTMENTS, PART_TYPES, MODELS_PART_NO, getPartTypeLabel } from '../data/masterData';
 import { getEmployeesByDepartment, POWDER_COAT_RECEIVERS } from '../data/employeeData';
 import { uploadEvidenceImage, createBatchJobs } from '../lib/supabase';
 import { PowderCoatJob, JobPriority, PlanItem } from '../types';
@@ -518,12 +518,14 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
                           const planKey = makeContainerKey(plan);
                           return (
                             <option key={planKey} value={planKey} className="bg-slate-900 text-white py-1">
-                              📦 {plan.name}{plan.date ? ` [${plan.date}]` : ''} ({plan.items.length} รายการตามแผน)
+                              📦 {plan.name}{plan.date ? ` [${plan.date}]` : ''} ({plan.items.length} {lang === 'my' ? 'ခု အစီအစဉ်' : 'รายการตามแผน'})
                             </option>
                           );
                         })}
                         <option value="__custom__" className="bg-slate-900 text-amber-300 font-semibold">
-                          ✏️ + ระบุตู้/ลังสินค้าอื่นด้วยตนเอง (นอกแผน)
+                          {lang === 'my'
+                            ? '✏️ + အခြား ကွန်တိန်နာ/ဘောက်စ် ကိုယ်တိုင်ရိုက်ထည့်မည်'
+                            : '✏️ + ระบุตู้/ลังสินค้าอื่นด้วยตนเอง (นอกแผน)'}
                         </option>
                       </select>
                       <Box className="w-4 h-4 text-orange-400 absolute left-3.5 top-3.5 pointer-events-none" />
@@ -984,7 +986,7 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
             </label>
             {planContainerName && (
               <span className="text-[10px] text-orange-300/90 font-medium">
-                ตู้: {planContainerName}
+                {lang === 'my' ? 'ကွန်တိန်နာ:' : 'ตู้:'} {planContainerName}
               </span>
             )}
           </div>
@@ -992,7 +994,7 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
           <div className="relative">
             <input
               type="text"
-              placeholder="พิมพ์ค้นหา เช่น HA410, AM101..."
+              placeholder={lang === 'my' ? 'ရှာဖွေရန် ဥပမာ HA410, AM101...' : 'พิมพ์ค้นหา เช่น HA410, AM101...'}
               value={item.modelSearch || item.modelPartNo}
               onFocus={() => onUpdate({ isModelDropdownOpen: true })}
               onChange={(e) => {
@@ -1024,10 +1026,14 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
               <Ban className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-rose-300 block">
-                  🚫 แจ้งเตือน: ฝ่ายวางแผนยกเลิกการผลิตโมเดลนี้ในตู้ {planContainerName}!
+                  {lang === 'my'
+                    ? `🚫 သတိပေးချက်: ဤမော်ဒယ်ကို ${planContainerName} ကွန်တိန်နာတွင် ထုတ်လုပ်မှု ဖျက်သိမ်းထားသည်!`
+                    : `🚫 แจ้งเตือน: ฝ่ายวางแผนยกเลิกการผลิตโมเดลนี้ในตู้ ${planContainerName}!`}
                 </span>
                 <span className="text-[11px] text-rose-300/80 leading-relaxed block mt-0.5">
-                  ห้ามรับเข้าพ่นสีโดยพลการ กรุณาตรวจสอบกับฝ่ายวางแผนก่อนดำเนินการ
+                  {lang === 'my'
+                    ? 'ဆေးမှုတ်ဌာနသို့ မလက်ခံပါနှင့်။ အစီအစဉ်ဌာနနှင့် အရင်စစ်ဆေးပါ။'
+                    : 'ห้ามรับเข้าพ่นสีโดยพลการ กรุณาตรวจสอบกับฝ่ายวางแผนก่อนดำเนินการ'}
                 </span>
               </div>
             </div>
@@ -1039,15 +1045,15 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
               <div className="p-2 text-xs text-slate-400 border-b border-slate-800 flex justify-between bg-slate-950 sticky top-0 z-10">
                 <span>
                   {matchedPlanItems.length > 0
-                    ? `โมเดลในแผนตู้: ${matchedPlanItems.length} รายการ`
-                    : `พบ ${filteredModels.length} รายการ`}
+                    ? (lang === 'my' ? `ကွန်တိန်နာ အစီအစဉ်: ${matchedPlanItems.length} ခု` : `โมเดลในแผนตู้: ${matchedPlanItems.length} รายการ`)
+                    : (lang === 'my' ? `${filteredModels.length} ခု တွေ့ရှိသည်` : `พบ ${filteredModels.length} รายการ`)}
                 </span>
                 <button
                   type="button"
                   onClick={() => onUpdate({ isModelDropdownOpen: false })}
                   className="text-orange-400 hover:underline"
                 >
-                  ปิด
+                  {lang === 'my' ? 'ပိတ်မည်' : 'ปิด'}
                 </button>
               </div>
 
@@ -1145,7 +1151,7 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
         {/* ชิ้นส่วน (Part) */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-            Part / ชิ้นส่วนไหน <span className="text-rose-400">*</span>
+            {lang === 'my' ? 'အစိတ်အပိုင်း (PART)' : 'Part / ชิ้นส่วนไหน'} <span className="text-rose-400">*</span>
           </label>
           <div className="relative">
             <select
@@ -1155,11 +1161,11 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
             >
               {PART_TYPES.map((pt) => (
                 <option key={pt} value={pt} className="bg-slate-800 text-white">
-                  {pt}
+                  {getPartTypeLabel(pt, lang)}
                 </option>
               ))}
               <option value="อื่นๆ" className="bg-slate-800 text-white">
-                + ระบุเอง (อื่นๆ)
+                {lang === 'my' ? '+ ကိုယ်တိုင်ရိုက်ထည့်မည် (အခြား)' : '+ ระบุเอง (อื่นๆ)'}
               </option>
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
@@ -1168,7 +1174,7 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
           {item.partName === 'อื่นๆ' && (
             <input
               type="text"
-              placeholder="ระบุชื่อชิ้นส่วน..."
+              placeholder={lang === 'my' ? 'အစိတ်အပိုင်းအမည် ရိုက်ထည့်ပါ...' : 'ระบุชื่อชิ้นส่วน...'}
               value={item.customPartName}
               onChange={(e) => onUpdate({ customPartName: e.target.value })}
               className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs"
@@ -1230,7 +1236,7 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
 
           {/* Quick chips */}
           <div className="flex items-center space-x-1 mt-1.5 overflow-x-auto pb-0.5">
-            <span className="text-[10px] text-slate-400 mr-0.5">ด่วน:</span>
+            <span className="text-[10px] text-slate-400 mr-0.5">{lang === 'my' ? 'အမြန်:' : 'ด่วน:'}</span>
             {[1, 2, 4, 5, 10, 20].map((num) => (
               <button
                 key={num}
@@ -1253,7 +1259,7 @@ const ItemCardRow: React.FC<ItemCardRowProps> = ({
       <div className="mt-3.5 pt-3 border-t border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="text-xs text-slate-400 flex items-center space-x-1.5">
           <Flame className="w-3.5 h-3.5 text-rose-400" />
-          <span>ระดับความเร่งด่วนของรายการนี้:</span>
+          <span>{lang === 'my' ? 'ဤပစ္စည်း၏ အရေးကြီးမှု အဆင့်:' : 'ระดับความเร่งด่วนของรายการนี้:'}</span>
         </span>
 
         <div className="grid grid-cols-3 gap-2">
