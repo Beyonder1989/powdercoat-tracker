@@ -7,8 +7,9 @@ import { DispatchModal, DispatchData } from './components/DispatchModal';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { PinModal } from './components/PinModal';
 import { StartCoatingModal } from './components/StartCoatingModal';
+import { FinishCoatingModal } from './components/FinishCoatingModal';
 import { ContainerPlanDashboard } from './components/ContainerPlanDashboard';
-import { fetchJobs, updateJobStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
+import { fetchJobs, updateJobStatus, splitJobAndUpdateStatus, updateJobPriority, deleteJob, saveLocalJobs } from './lib/supabase';
 import { PowderCoatJob, JobStatus, JobPriority, CoatingType } from './types';
 import { useLanguage } from './context/LanguageContext';
 import { useRole } from './context/RoleContext';
@@ -85,6 +86,7 @@ export function App() {
   const [selectedJob, setSelectedJob] = useState<PowderCoatJob | null>(null);
   const [dispatchingJob, setDispatchingJob] = useState<PowderCoatJob | null>(null);
   const [startCoatingJob, setStartCoatingJob] = useState<PowderCoatJob | null>(null);
+  const [finishCoatingJob, setFinishCoatingJob] = useState<PowderCoatJob | null>(null);
 
   // Load jobs on start
   const loadJobs = async () => {
@@ -133,16 +135,76 @@ export function App() {
     }
   };
 
-  // Handle start coating confirmation (Hanger No. & Coating Process)
+  // Handle start coating confirmation (Hanger No., Coating Process & Partial Split Quantity)
   const handleConfirmStartCoating = async (
     jobId: string,
     hangerNo: string,
-    coatingType: CoatingType
+    coatingType: CoatingType,
+    qtyToCoat: number
   ) => {
-    await handleUpdateStatus(jobId, 'IN_PROGRESS', {
-      hanger_no: hangerNo,
-      coating_type: coatingType,
+    const sourceJob = jobs.find((j) => j.id === jobId);
+    if (!sourceJob) return;
+
+    const { remainingJob, splitJob } = await splitJobAndUpdateStatus(
+      sourceJob,
+      qtyToCoat,
+      'IN_PROGRESS',
+      {
+        hanger_no: hangerNo,
+        coating_type: coatingType,
+      }
+    );
+
+    setJobs((prev) => {
+      let next = prev;
+      if (remainingJob) {
+        next = next.map((j) => (j.id === jobId ? remainingJob : j));
+        if (splitJob) next = [splitJob, ...next];
+      } else if (splitJob) {
+        next = next.map((j) => (j.id === jobId ? splitJob : j));
+      }
+      return next;
     });
+
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(remainingJob || splitJob);
+    }
+  };
+
+  // Handle opening finish coating (ถ้ามี 1 ชิ้น กดจบได้เลย ถ้ามีมากกว่า 1 ชิ้น เปิดหน้าต่างเลือกจำนวนปลดลง)
+  const handleOpenFinishCoating = (job: PowderCoatJob) => {
+    if ((job.quantity || 1) <= 1) {
+      handleUpdateStatus(job.id, 'COMPLETED');
+    } else {
+      setFinishCoatingJob(job);
+    }
+  };
+
+  // Handle confirm finish coating (Partial Unload Split)
+  const handleConfirmFinishCoating = async (jobId: string, unloadQty: number) => {
+    const sourceJob = jobs.find((j) => j.id === jobId);
+    if (!sourceJob) return;
+
+    const { remainingJob, splitJob } = await splitJobAndUpdateStatus(
+      sourceJob,
+      unloadQty,
+      'COMPLETED'
+    );
+
+    setJobs((prev) => {
+      let next = prev;
+      if (remainingJob) {
+        next = next.map((j) => (j.id === jobId ? remainingJob : j));
+        if (splitJob) next = [splitJob, ...next];
+      } else if (splitJob) {
+        next = next.map((j) => (j.id === jobId ? splitJob : j));
+      }
+      return next;
+    });
+
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(remainingJob || splitJob);
+    }
   };
 
   // Handle dispatch confirmation to other departments (with Photos & Destination Dept)
@@ -243,6 +305,7 @@ export function App() {
             onUpdatePriority={handleUpdatePriority}
             onOpenDispatch={setDispatchingJob}
             onOpenStartCoating={setStartCoatingJob}
+            onOpenFinishCoating={handleOpenFinishCoating}
             onDeleteJob={handleDeleteJob}
             initialFilter="ALL"
           />
@@ -313,16 +376,30 @@ export function App() {
             setSelectedJob(null);
             setStartCoatingJob(job);
           }}
+          onOpenFinishCoating={(job) => {
+            setSelectedJob(null);
+            handleOpenFinishCoating(job);
+          }}
         />
       )}
 
-      {/* Modal: Start Coating (Hanger No. & Coating Process) */}
+      {/* Modal: Start Coating (Hanger No., Coating Process & Partial Split) */}
       {startCoatingJob && (
         <StartCoatingModal
           job={startCoatingJob}
           isOpen={Boolean(startCoatingJob)}
           onClose={() => setStartCoatingJob(null)}
           onConfirm={handleConfirmStartCoating}
+        />
+      )}
+
+      {/* Modal: Finish Coating (Partial Unload from Hanger Line) */}
+      {finishCoatingJob && (
+        <FinishCoatingModal
+          job={finishCoatingJob}
+          isOpen={Boolean(finishCoatingJob)}
+          onClose={() => setFinishCoatingJob(null)}
+          onConfirm={handleConfirmFinishCoating}
         />
       )}
 

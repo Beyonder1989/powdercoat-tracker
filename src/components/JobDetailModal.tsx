@@ -11,6 +11,7 @@ interface JobDetailModalProps {
   onUpdatePriority?: (jobId: string, priority: JobPriority) => void;
   onOpenDispatch: (job: PowderCoatJob) => void;
   onOpenStartCoating?: (job: PowderCoatJob) => void;
+  onOpenFinishCoating?: (job: PowderCoatJob) => void;
 }
 
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
@@ -20,6 +21,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onUpdatePriority,
   onOpenDispatch,
   onOpenStartCoating,
+  onOpenFinishCoating,
 }) => {
   const { lang, t } = useLanguage();
   const { isOperator } = useRole();
@@ -503,7 +505,11 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 {job.status === 'IN_PROGRESS' && (
                   <button
                     onClick={() => {
-                      onUpdateStatus(job.id, 'COMPLETED');
+                      if (onOpenFinishCoating) {
+                        onOpenFinishCoating(job);
+                      } else {
+                        onUpdateStatus(job.id, 'COMPLETED');
+                      }
                       onClose();
                     }}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1.5"

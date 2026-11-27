@@ -13,6 +13,7 @@ interface JobTrackerProps {
   onUpdatePriority?: (jobId: string, priority: JobPriority) => void;
   onOpenDispatch: (job: PowderCoatJob) => void;
   onOpenStartCoating?: (job: PowderCoatJob) => void;
+  onOpenFinishCoating?: (job: PowderCoatJob) => void;
   onDeleteJob: (jobId: string) => void;
   initialFilter?: JobStatus | 'ALL' | 'URGENT_ONLY';
 }
@@ -26,6 +27,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   onUpdatePriority,
   onOpenDispatch,
   onOpenStartCoating,
+  onOpenFinishCoating,
   onDeleteJob,
   initialFilter = 'ALL',
 }) => {
@@ -581,7 +583,13 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
 
                         {job.status === 'IN_PROGRESS' && (
                           <button
-                            onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
+                            onClick={() => {
+                              if (onOpenFinishCoating) {
+                                onOpenFinishCoating(job);
+                              } else {
+                                onUpdateStatus(job.id, 'COMPLETED');
+                              }
+                            }}
                             className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors flex items-center space-x-1"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -762,7 +770,13 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                               )}
                               {job.status === 'IN_PROGRESS' && (
                                 <button
-                                  onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
+                                  onClick={() => {
+                                    if (onOpenFinishCoating) {
+                                      onOpenFinishCoating(job);
+                                    } else {
+                                      onUpdateStatus(job.id, 'COMPLETED');
+                                    }
+                                  }}
                                   className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
                                 >
                                   {t.btnFinishCoating}

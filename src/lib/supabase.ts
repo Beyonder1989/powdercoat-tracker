@@ -339,6 +339,71 @@ export const updateJobStatus = async (
   return null;
 };
 
+// แบ่งจำนวนชิ้นงาน (Batch Split) เมื่อขึ้นพ่นสีบางส่วน หรือปลดลงจากไลน์บางส่วน
+export const splitJobAndUpdateStatus = async (
+  sourceJob: PowderCoatJob,
+  splitQty: number,
+  targetStatus: JobStatus,
+  extraData?: Partial<PowderCoatJob>
+): Promise<{ remainingJob: PowderCoatJob | null; splitJob: PowderCoatJob | null }> => {
+  const safeQty = Math.max(1, Math.min(splitQty, sourceJob.quantity));
+
+  // กรณีทำครบทั้งจำนวน -> อัปเดตการ์ดเดิมตามปกติ ไม่ต้องแตกการ์ด
+  if (safeQty >= sourceJob.quantity) {
+    const updated = await updateJobStatus(sourceJob.id, targetStatus, extraData);
+    return { remainingJob: null, splitJob: updated };
+  }
+
+  const remainingQty = sourceJob.quantity - safeQty;
+  const now = new Date().toISOString();
+
+  // 1. ลดจำนวนในการ์ดเดิม (คงสถานะเดิมไว้ เช่น รอพ่นสี หรือ กำลังพ่นสีบนไลน์)
+  const remainingJob = await updateJobStatus(sourceJob.id, sourceJob.status, {
+    quantity: remainingQty,
+  });
+
+  // 2. สร้างการ์ดใหม่สำหรับจำนวนที่แบ่งออกมา พร้อมรหัสติดตามที่เชื่อมโยงกับใบเดิม
+  const baseCode = sourceJob.tracking_code.replace(/-(H\d+|S\d+).*$/, '');
+  const shortTag =
+    targetStatus === 'IN_PROGRESS' && extraData?.hanger_no
+      ? `H${extraData.hanger_no}`
+      : `S${Math.floor(10 + Math.random() * 90)}`;
+  const uniqueSuffix = Math.floor(10 + Math.random() * 90);
+  const splitTrackingCode = `${baseCode}-${shortTag}-${uniqueSuffix}`;
+
+  const splitJobPayload: Omit<PowderCoatJob, 'id' | 'tracking_code' | 'created_at'> & {
+    tracking_code?: string;
+  } = {
+    tracking_code: splitTrackingCode,
+    sender_department: sourceJob.sender_department,
+    model_part_no: sourceJob.model_part_no,
+    part_name: sourceJob.part_name,
+    sender_name: sourceJob.sender_name,
+    container_no: sourceJob.container_no,
+    quantity: safeQty,
+    priority: sourceJob.priority || 'NORMAL',
+    delivery_slip_image_url: sourceJob.delivery_slip_image_url,
+    part_image_url: sourceJob.part_image_url,
+    status: targetStatus,
+    hanger_no: extraData?.hanger_no ?? sourceJob.hanger_no,
+    coating_type: extraData?.coating_type ?? sourceJob.coating_type,
+    received_at: sourceJob.received_at,
+    coating_started_at:
+      targetStatus === 'IN_PROGRESS'
+        ? extraData?.coating_started_at || now
+        : sourceJob.coating_started_at,
+    coating_finished_at:
+      targetStatus === 'COMPLETED'
+        ? extraData?.coating_finished_at || now
+        : sourceJob.coating_finished_at,
+    receiver_name: sourceJob.receiver_name,
+    notes: extraData?.notes ?? sourceJob.notes,
+  };
+
+  const splitJob = await createJob(splitJobPayload);
+  return { remainingJob, splitJob };
+};
+
 // อัปเดตระดับความสำคัญ/ความเร่งด่วนของงาน (โดยหัวหน้างาน/รองหัวหน้า)
 export const updateJobPriority = async (
   id: string,

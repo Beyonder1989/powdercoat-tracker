@@ -7,7 +7,7 @@ interface StartCoatingModalProps {
   job: PowderCoatJob;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (jobId: string, hangerNo: string, coatingType: CoatingType) => void;
+  onConfirm: (jobId: string, hangerNo: string, coatingType: CoatingType, qtyToCoat: number) => void;
 }
 
 export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
@@ -27,6 +27,7 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
 
   const [hangerNo, setHangerNo] = useState<number | ''>(initialHangerNum);
   const [coatingType, setCoatingType] = useState<CoatingType>(job.coating_type || 'EDP_AND_POWDER');
+  const [qtyToCoat, setQtyToCoat] = useState<number>(job.quantity || 1);
   const [error, setError] = useState<string | null>(null);
 
   // Tab range for quick number buttons: 1-20, 21-40, 41-60, 61-80, 81-99
@@ -53,8 +54,9 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
       setError(t.hangerRequiredAlert);
       return;
     }
+    const safeQty = Math.max(1, Math.min(qtyToCoat, job.quantity || 1));
     setError(null);
-    onConfirm(job.id, String(hangerNo), coatingType);
+    onConfirm(job.id, String(hangerNo), coatingType, safeQty);
     onClose();
   };
 
@@ -110,6 +112,106 @@ export const StartCoatingModal: React.FC<StartCoatingModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Partial Quantity Selector (แบ่งจำนวนขึ้นพ่นต่อ 1 แฮงค์เกอร์ กรณีรับเข้ามากกว่า 1 ชิ้น) */}
+          {job.quantity > 1 && (
+            <div className="space-y-2.5 bg-sky-950/30 border border-sky-700/60 p-3.5 rounded-xl">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs sm:text-sm font-bold text-sky-200 flex items-center space-x-1.5">
+                  <span>📦</span>
+                  <span>
+                    {lang === 'my'
+                      ? 'ဤချိတ်တွင် ချိတ်ဆွဲမည့် အရေအတွက်'
+                      : 'จำนวนชิ้นที่จะขึ้นแขวนในแฮงค์เกอร์นี้'}
+                  </span>
+                </label>
+                <span className="text-[11px] text-sky-300/90 font-mono">
+                  (รับเข้าทั้งหมด {job.quantity} {t.pieceUnit})
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    disabled={qtyToCoat <= 1}
+                    onClick={() => setQtyToCoat((q) => Math.max(1, q - 1))}
+                    className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-bold text-base flex items-center justify-center border border-slate-700 active:scale-95 transition-all"
+                  >
+                    -
+                  </button>
+                  <div className="min-w-[82px] text-center bg-slate-900 border-2 border-sky-500/70 rounded-xl px-3 py-1.5">
+                    <span className="text-lg font-black font-mono text-white">{qtyToCoat}</span>
+                    <span className="text-xs text-slate-400 ml-1">{t.pieceUnit}</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={qtyToCoat >= job.quantity}
+                    onClick={() => setQtyToCoat((q) => Math.min(job.quantity, q + 1))}
+                    className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-bold text-base flex items-center justify-center border border-slate-700 active:scale-95 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick Chips */}
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setQtyToCoat(1)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      qtyToCoat === 1
+                        ? 'bg-sky-500 text-slate-950 border-sky-400 shadow'
+                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                  >
+                    1 {t.pieceUnit} (1 Set)
+                  </button>
+                  {job.quantity >= 4 && (
+                    <button
+                      type="button"
+                      onClick={() => setQtyToCoat(Math.floor(job.quantity / 2))}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        qtyToCoat === Math.floor(job.quantity / 2)
+                          ? 'bg-sky-500 text-slate-950 border-sky-400 shadow'
+                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                      }`}
+                    >
+                      {Math.floor(job.quantity / 2)} {t.pieceUnit}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setQtyToCoat(job.quantity)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      qtyToCoat === job.quantity
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow'
+                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                  >
+                    ทั้งหมด ({job.quantity})
+                  </button>
+                </div>
+              </div>
+
+              {/* Split Preview Banner */}
+              {qtyToCoat < job.quantity && (
+                <div className="mt-1 p-2.5 rounded-lg bg-slate-900/90 border border-sky-500/40 text-[11px] space-y-1">
+                  <div className="flex items-center justify-between text-amber-300 font-semibold">
+                    <span>🪝 ขึ้นพ่นแฮงค์เกอร์นี้ (กำลังพ่นสี):</span>
+                    <span className="font-mono font-bold">{qtyToCoat} {t.pieceUnit}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sky-300">
+                    <span>⏳ คงเหลือรอขึ้นพ่นแฮงค์เกอร์ถัดไป:</span>
+                    <span className="font-mono font-bold">{job.quantity - qtyToCoat} {t.pieceUnit}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 pt-0.5">
+                    * ระบบจะแยกการ์ดตามแฮงค์เกอร์ให้อัตโนมัติ เพื่อให้ปลดลงและติดตามแต่ละ Set ได้อิสระ
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Hanger Number Selector (1 - 99 strictly, NO manual typing) */}
           <div className="space-y-3 bg-slate-950/60 border border-slate-800 p-3.5 rounded-xl">
