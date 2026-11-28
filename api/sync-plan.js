@@ -70,8 +70,9 @@ const classifyArgbColor = (argb) => {
   return null;
 };
 
-export async function parseXlsxBuffer(buffer) {
-  const wb = new ExcelJS.Workbook();
+async function parseXlsxBuffer(buffer) {
+  const Workbook = ExcelJS.Workbook || ExcelJS.default?.Workbook;
+  const wb = new Workbook();
   await wb.xlsx.load(buffer);
   const ws = wb.worksheets[0];
   if (!ws) {
