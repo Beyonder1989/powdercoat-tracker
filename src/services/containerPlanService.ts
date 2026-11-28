@@ -325,12 +325,141 @@ export const getCrossContainerMatches = (
   return resultMap;
 };
 
-// ซิงค์แผนงานสดจาก Google Sheet (CSV Export)
+export interface ColorSyncStats {
+  greenTotal: number;
+  redTotal: number;
+  yellowTotal: number;
+  newlyClosed: number;
+  newlyCancelled: number;
+  qtyChangedCount: number;
+  usedColorApi: boolean;
+}
+
+// เทียบยอดจำนวนเดิมกับยอดใหม่ที่ซิงค์มา เพื่อจับการปรับเพิ่ม/ลดยอดอัตโนมัติ
+const annotateQtyChanges = (
+  newPlans: ContainerPlan[],
+  prevPlans: ContainerPlan[]
+): { plans: ContainerPlan[]; qtyChangedCount: number } => {
+  const prevQtyMap = new Map<string, number>();
+  prevPlans.forEach((p) => {
+    const cKey = makeContainerKey(p);
+    p.items.forEach((it) => {
+      prevQtyMap.set(`${cKey}::${it.modelPartNo.trim().toUpperCase()}`, it.planQty);
+      prevQtyMap.set(makePlanItemKey(p.id, it.modelPartNo), it.planQty);
+    });
+  });
+
+  let qtyChangedCount = 0;
+  const annotated = newPlans.map((p) => {
+    const cKey = makeContainerKey(p);
+    return {
+      ...p,
+      items: p.items.map((it) => {
+        const prevQty =
+          prevQtyMap.get(`${cKey}::${it.modelPartNo.trim().toUpperCase()}`) ??
+          prevQtyMap.get(makePlanItemKey(p.id, it.modelPartNo));
+        if (prevQty !== undefined && prevQty !== it.planQty) {
+          qtyChangedCount++;
+          return { ...it, previousPlanQty: prevQty, isQtyYellow: true };
+        }
+        return it;
+      }),
+    };
+  });
+
+  return { plans: annotated, qtyChangedCount };
+};
+
+// ซิงค์แผนงานสดจาก Google Sheet (รองรับอ่านสีพื้นหลัง เขียว=ปิดยอด, แดง=ยกเลิก, เหลือง=ปรับยอด ผ่าน /api/sync-plan)
 export const syncPlansFromGoogleSheet = async (): Promise<{
   success: boolean;
   plans: ContainerPlan[];
+  colorSyncStats?: ColorSyncStats;
   message?: string;
 }> => {
+  const prevPlans = getCachedContainerPlans();
+
+  // 1. ลองดึงผ่าน Serverless API (/api/sync-plan) ซึ่งอ่านสีจากไฟล์ .xlsx จริงได้ 100% และไม่ติด CORS
+  try {
+    const apiRes = await fetch('/api/sync-plan', { cache: 'no-store' });
+    if (apiRes.ok) {
+      const json = await apiRes.json();
+      if (json?.success && Array.isArray(json.plans) && json.plans.length > 0) {
+        const { plans: annotatedPlans, qtyChangedCount } = annotateQtyChanges(json.plans, prevPlans);
+
+        // ผสานสถานะตามสีจาก Google Sheet เข้ากับฐานข้อมูลปิดยอด / ยกเลิกบน Cloud
+        const existingClosed = new Set(
+          (await fetchClosedPlanItemIds()).map(normalizeClosedItemId).filter(Boolean)
+        );
+        const existingCancelled = new Set(
+          (await fetchCancelledPlanItemIds()).map(normalizeClosedItemId).filter(Boolean)
+        );
+
+        let newlyClosed = 0;
+        let newlyCancelled = 0;
+        let closedChanged = false;
+        let cancelledChanged = false;
+
+        annotatedPlans.forEach((p) => {
+          p.items.forEach((it) => {
+            const key = makePlanItemKey(p.id, it.modelPartNo);
+            if (it.sheetColor === 'GREEN') {
+              if (!existingClosed.has(key)) {
+                existingClosed.add(key);
+                newlyClosed++;
+                closedChanged = true;
+              }
+              if (existingCancelled.has(key)) {
+                existingCancelled.delete(key);
+                cancelledChanged = true;
+              }
+            } else if (it.sheetColor === 'RED') {
+              if (!existingCancelled.has(key)) {
+                existingCancelled.add(key);
+                newlyCancelled++;
+                cancelledChanged = true;
+              }
+              if (existingClosed.has(key)) {
+                existingClosed.delete(key);
+                closedChanged = true;
+              }
+            }
+          });
+        });
+
+        if (closedChanged) {
+          await saveClosedPlanItemIds(Array.from(existingClosed));
+        }
+        if (cancelledChanged) {
+          await saveCancelledPlanItemIds(Array.from(existingCancelled));
+        }
+
+        try {
+          localStorage.setItem(CACHED_PLANS_STORAGE_KEY, JSON.stringify(annotatedPlans));
+        } catch (e) {
+          console.warn('Failed to cache synced plans:', e);
+        }
+
+        return {
+          success: true,
+          plans: annotatedPlans,
+          colorSyncStats: {
+            greenTotal: json.summary?.greenCount || 0,
+            redTotal: json.summary?.redCount || 0,
+            yellowTotal: json.summary?.yellowCount || 0,
+            newlyClosed,
+            newlyCancelled,
+            qtyChangedCount,
+            usedColorApi: true,
+          },
+        };
+      }
+    }
+  } catch (apiErr: any) {
+    console.warn('Color sync API (/api/sync-plan) unavailable, falling back to CSV:', apiErr?.message);
+  }
+
+  // 2. Fallback: ดึงแบบ CSV กรณีรัน dev ภายในเครื่องโดยไม่มี Vercel API
   try {
     const res = await fetch(GOOGLE_SHEET_CSV_URL);
     if (!res.ok) {
@@ -397,19 +526,32 @@ export const syncPlansFromGoogleSheet = async (): Promise<{
     }
 
     if (containers.length > 0) {
+      const { plans: annotatedPlans, qtyChangedCount } = annotateQtyChanges(containers, prevPlans);
       try {
-        localStorage.setItem(CACHED_PLANS_STORAGE_KEY, JSON.stringify(containers));
+        localStorage.setItem(CACHED_PLANS_STORAGE_KEY, JSON.stringify(annotatedPlans));
       } catch (e) {
         console.warn('Failed to cache synced plans:', e);
       }
-      return { success: true, plans: containers };
+      return {
+        success: true,
+        plans: annotatedPlans,
+        colorSyncStats: {
+          greenTotal: 0,
+          redTotal: 0,
+          yellowTotal: qtyChangedCount,
+          newlyClosed: 0,
+          newlyCancelled: 0,
+          qtyChangedCount,
+          usedColorApi: false,
+        },
+      };
     }
     return { success: false, plans: INITIAL_CONTAINER_PLANS, message: 'ไม่พบรายการตู้จากชีต' };
   } catch (e: any) {
     console.warn('Live Google Sheet fetch failed (likely CORS or network), using bundled plans:', e.message);
     return {
       success: true, // fallback smoothly
-      plans: INITIAL_CONTAINER_PLANS,
+      plans: prevPlans,
       message: 'ใช้ข้อมูลแผนงานล่าสุดที่โหลดไว้ในระบบ',
     };
   }

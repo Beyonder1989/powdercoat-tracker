@@ -50,6 +50,10 @@ export interface PlanItem {
   id: string;
   modelPartNo: string;
   planQty: number;
+  rawQtyText?: string;
+  previousPlanQty?: number;
+  sheetColor?: 'GREEN' | 'RED' | 'YELLOW' | null;
+  isQtyYellow?: boolean;
   pcStatus?: string;
   note?: string;
   isClosed?: boolean;

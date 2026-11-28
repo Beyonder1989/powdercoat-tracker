@@ -43,7 +43,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   
   // UI States
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterMode, setFilterMode] = useState<'ALL' | 'PENDING' | 'CLOSED' | 'CANCELLED' | 'HAS_FUTURE'>('ALL');
+  const [filterMode, setFilterMode] = useState<'ALL' | 'PENDING' | 'CLOSED' | 'CANCELLED' | 'YELLOW' | 'HAS_FUTURE'>('ALL');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [isManageModalOpen, setIsManageModalOpen] = useState<boolean>(false);
@@ -276,11 +276,20 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
         setCancelledItemIds(new Set(latestCancelled.map(normalizeClosedItemId).filter(Boolean)));
         const latestHidden = await fetchHiddenContainerKeys();
         setHiddenContainerKeys(new Set(latestHidden));
-        setSyncMessage(
-          lang === 'my' 
-            ? 'Google Sheet မှ အောင်မြင်စွာ ရယူပြီးပါပြီ (ပိတ်ပြီး/ဖျက်သိမ်းပြီး စာရင်းများ မပျောက်ပါ)' 
-            : 'ซิงค์แผนงานล่าสุดจาก Google Sheet สำเร็จ (คงสถานะปิดยอด & ยกเลิกเดิมไว้ 100%)'
-        );
+        const cs = res.colorSyncStats;
+        if (cs?.usedColorApi) {
+          setSyncMessage(
+            lang === 'my'
+              ? `Google Sheet မှ အရောင်အလိုက် ရယူပြီးပါပြီ (🟢 ပိတ်ပြီး ${cs.greenTotal} / 🔴 ဖျက်သိမ်း ${cs.redTotal} / 🟡 အရေအတွက်ပြောင်း ${cs.yellowTotal})`
+              : `ซิงค์พร้อมอ่านสีจาก Google Sheet สำเร็จ! 🟢 สีเขียว(ปิดยอด) ${cs.greenTotal} รายการ${cs.newlyClosed > 0 ? ` (+ใหม่ ${cs.newlyClosed})` : ''} • 🔴 สีแดง(ยกเลิก) ${cs.redTotal} รายการ${cs.newlyCancelled > 0 ? ` (+ใหม่ ${cs.newlyCancelled})` : ''} • 🟡 สีเหลือง/ปรับยอด ${cs.yellowTotal} รายการ`
+          );
+        } else {
+          setSyncMessage(
+            lang === 'my' 
+              ? 'Google Sheet မှ အောင်မြင်စွာ ရယူပြီးပါပြီ (ပိတ်ပြီး/ဖျက်သိမ်းပြီး စာရင်းများ မပျောက်ပါ)' 
+              : 'ซิงค์แผนงานล่าสุดจาก Google Sheet สำเร็จ (คงสถานะปิดยอด & ยกเลิกเดิมไว้ 100%)'
+          );
+        }
       } else {
         setSyncMessage(res.message || 'ใช้ข้อมูลแผนงานล่าสุดในระบบ');
       }
@@ -288,8 +297,17 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       setSyncMessage('ไม่สามารถเชื่อมต่อได้ กำลังใช้ข้อมูลแผนงานล่าสุดในระบบ');
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncMessage(null), 4000);
+      setTimeout(() => setSyncMessage(null), 7000);
     }
+  };
+
+  // Helper เช็คว่ารายการนี้ถูกวางแผนไฮไลต์สีเหลืองหรือมีการปรับยอดจำนวนหรือไม่
+  const checkIsItemYellow = (it: PlanItem): boolean => {
+    return Boolean(
+      it.isQtyYellow ||
+      it.sheetColor === 'YELLOW' ||
+      (it.previousPlanQty !== undefined && it.previousPlanQty !== it.planQty)
+    );
   };
 
   // คำนวณสถิติภาพรวมของตู้นี้
@@ -298,6 +316,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     const totalPlanSets = selectedContainer.items.reduce((s, it) => s + (it.planQty || 1), 0);
     let closedCount = 0;
     let cancelledCount = 0;
+    let yellowCount = 0;
     let hasFutureCount = 0;
 
     selectedContainer.items.forEach((it) => {
@@ -306,13 +325,16 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
       } else if (checkIsItemClosed(it)) {
         closedCount++;
       }
+      if (checkIsItemYellow(it)) {
+        yellowCount++;
+      }
       if (crossMatches.has(it.modelPartNo.trim())) {
         hasFutureCount++;
       }
     });
 
     const pendingCount = Math.max(0, totalItems - closedCount - cancelledCount);
-    return { totalItems, totalPlanSets, closedCount, cancelledCount, pendingCount, hasFutureCount };
+    return { totalItems, totalPlanSets, closedCount, cancelledCount, yellowCount, pendingCount, hasFutureCount };
   }, [selectedContainer, closedItemIds, cancelledItemIds, crossMatches]);
 
   // กรองรายการชิ้นงานในตู้ตามค้นหาและสถานะ
@@ -320,12 +342,14 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     return selectedContainer.items.filter((item) => {
       const isClosed = checkIsItemClosed(item);
       const isCancelled = checkIsItemCancelled(item);
+      const isYellow = checkIsItemYellow(item);
       const hasFuture = crossMatches.has(item.modelPartNo.trim());
 
       // Filter Mode
       if (filterMode === 'PENDING' && (isClosed || isCancelled)) return false;
       if (filterMode === 'CLOSED' && !isClosed) return false;
       if (filterMode === 'CANCELLED' && !isCancelled) return false;
+      if (filterMode === 'YELLOW' && !isYellow) return false;
       if (filterMode === 'HAS_FUTURE' && !hasFuture) return false;
 
       // Search Query
@@ -686,6 +710,20 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             </button>
 
             <button
+              onClick={() => setFilterMode('YELLOW')}
+              className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
+                filterMode === 'YELLOW'
+                  ? 'bg-yellow-500 text-slate-950 shadow font-bold'
+                  : stats.yellowCount > 0
+                  ? 'bg-yellow-950/60 text-yellow-300 hover:bg-yellow-900/60 border border-yellow-600/60'
+                  : 'bg-slate-800 text-yellow-400/80 hover:bg-slate-700 border border-slate-700'
+              }`}
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>{lang === 'my' ? 'အရေအတွက်ပြောင်း' : 'ปรับยอด/สีเหลือง'} ({stats.yellowCount})</span>
+            </button>
+
+            <button
               onClick={() => setFilterMode('HAS_FUTURE')}
               className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors flex items-center space-x-1.5 ${
                 filterMode === 'HAS_FUTURE'
@@ -861,6 +899,20 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                         <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-950/80 text-amber-300 border border-amber-700">
                           <Clock className="w-3.5 h-3.5" />
                           <span>{lang === 'my' ? 'ထုတ်လုပ်ဆဲ' : 'ค้างผลิตในตู้นี้'}</span>
+                        </span>
+                      )}
+
+                      {/* Yellow / Quantity Changed Badge from Google Sheet */}
+                      {checkIsItemYellow(item) && (
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/70">
+                          <AlertCircle className="w-3.5 h-3.5 text-yellow-400" />
+                          <span>
+                            {item.previousPlanQty !== undefined && item.previousPlanQty !== item.planQty
+                              ? `${lang === 'my' ? 'အရေအတွက်ပြောင်း' : 'วางแผนปรับยอด'}: ${item.previousPlanQty} → ${item.planQty} (${item.planQty - item.previousPlanQty > 0 ? `+${item.planQty - item.previousPlanQty}` : item.planQty - item.previousPlanQty})`
+                              : item.rawQtyText
+                              ? `${lang === 'my' ? 'အဝါရောင် သတိပေး' : 'วางแผนปรับยอด'}: ${item.rawQtyText}`
+                              : (lang === 'my' ? 'အဝါရောင် (အရေအတွက် စစ်ဆေးပါ)' : 'วางแผนไฮไลต์สีเหลือง (ตรวจยอด)')}
+                          </span>
                         </span>
                       )}
                     </div>
