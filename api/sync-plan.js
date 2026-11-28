@@ -15,11 +15,30 @@ const makePlanItemKey = (containerIdOrName, modelPartNo) => {
   return `${cleanContainer}__${cleanModel}`;
 };
 
+const formatDateValue = (dateObj, numFmt = '') => {
+  const d = dateObj.getUTCDate();
+  const m = dateObj.getUTCMonth() + 1;
+  const y = dateObj.getUTCFullYear();
+  if (String(numFmt).toLowerCase().includes('y')) {
+    const dd = String(d).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    const yy = String(y).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  }
+  return `${d}/${m}`;
+};
+
 const getCellText = (cell) => {
   const v = cell?.value;
   if (v === null || v === undefined) return '';
+  if (v instanceof Date) {
+    return formatDateValue(v, cell?.numFmt);
+  }
   if (typeof v === 'object') {
-    if ('result' in v) return v.result != null ? String(v.result).trim() : '';
+    if ('result' in v) {
+      if (v.result instanceof Date) return formatDateValue(v.result, cell?.numFmt);
+      return v.result != null ? String(v.result).trim() : '';
+    }
     if ('richText' in v && Array.isArray(v.richText)) {
       return v.richText.map((r) => r.text || '').join('').trim();
     }
@@ -162,6 +181,39 @@ async function parseXlsxBuffer(buffer) {
   if (current && current.items.length > 0) {
     containers.push(current);
   }
+
+  // แยกแยะตู้สินค้าที่มีชื่อซ้ำกัน (เช่น SOUTH AFICA คนละวันที่ หรือ K'FRANZ 2 รอบ) ให้มี id และ date ไม่ชนกัน 100%
+  const baseIdCounts = new Map();
+  containers.forEach((c) => {
+    baseIdCounts.set(c.id, (baseIdCounts.get(c.id) || 0) + 1);
+  });
+
+  const seenOccurrences = new Map();
+  const usedIds = new Set();
+
+  containers.forEach((c) => {
+    const baseId = c.id;
+    const totalSameName = baseIdCounts.get(baseId) || 1;
+    if (totalSameName > 1) {
+      const occ = (seenOccurrences.get(baseId) || 0) + 1;
+      seenOccurrences.set(baseId, occ);
+
+      if (!c.date) {
+        c.date = `รอบที่ ${occ}`;
+      }
+      const dateSlug = c.date.replace(/[^a-zA-Z0-9ก-๙]/g, '_').toUpperCase();
+      let candidateId = `${baseId}_${dateSlug}`;
+      if (usedIds.has(candidateId)) {
+        candidateId = `${candidateId}_${occ}`;
+      }
+      c.id = candidateId;
+      c.items = c.items.map((it) => ({
+        ...it,
+        id: makePlanItemKey(c.id, it.modelPartNo),
+      }));
+    }
+    usedIds.add(c.id);
+  });
 
   return {
     plans: containers,

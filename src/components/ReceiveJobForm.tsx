@@ -262,11 +262,15 @@ export const ReceiveJobForm: React.FC<ReceiveJobFormProps> = ({ onSuccess, onCan
 
     // ตรวจสอบความปลอดภัย: มีโมเดลใดที่ฝ่ายวางแผนแจ้ง "ยกเลิกการผลิต" ในตู้นี้หรือไม่
     if (containerMode === 'PLAN' && currentPlanContainer) {
+      const isDupName =
+        allPlans.filter(
+          (p) => p.name.trim().toUpperCase() === currentPlanContainer.name.trim().toUpperCase()
+        ).length > 1;
       const cancelledItemInForm = items.find((it) => {
         const model = (it.modelPartNo || it.modelSearch).trim();
         if (!model) return false;
         const key1 = makePlanItemKey(currentPlanContainer.id, model);
-        const key2 = makePlanItemKey(currentPlanContainer.name, model);
+        const key2 = isDupName ? key1 : makePlanItemKey(currentPlanContainer.name, model);
         return (
           cancelledItemIds.has(key1) ||
           cancelledItemIds.has(key2) ||

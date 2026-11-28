@@ -79,12 +79,28 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     fetchHiddenContainerKeys().then((keys) => {
       setHiddenContainerKeys(new Set(keys));
     });
+
+    // ซ่อมแซมแคชอัตโนมัติหากแผนที่เคยแคชไว้ก่อนหน้านี้ยังไม่มีข้อมูลวันที่ของตู้สินค้า
+    const missingDatesCount = plans.filter((p) => !p.date || p.date.startsWith('รอบที่')).length;
+    if (missingDatesCount > 10) {
+      syncPlansFromGoogleSheet().then(async (res) => {
+        if (res.success && res.plans.length > 0) {
+          setPlans(res.plans);
+          const latestClosed = await fetchClosedPlanItemIds();
+          setClosedItemIds(new Set(latestClosed.map(normalizeClosedItemId).filter(Boolean)));
+          const latestCancelled = await fetchCancelledPlanItemIds();
+          setCancelledItemIds(new Set(latestCancelled.map(normalizeClosedItemId).filter(Boolean)));
+        }
+      });
+    }
   }, []);
 
   // เฉพาะตู้สินค้าที่เปิดแสดงผลอยู่จริง (ไม่รวมตู้ที่ซ่อน/เลื่อน/ยกเลิก)
   const visiblePlans = useMemo(() => {
     return plans.filter((p) => !hiddenContainerKeys.has(makeContainerKey(p)));
   }, [plans, hiddenContainerKeys]);
+
+  const actualHiddenCount = Math.max(0, plans.length - visiblePlans.length);
 
   // เมื่อเปลี่ยนตู้ ให้บันทึกเป็นตู้ปัจจุบัน
   const handleSelectContainer = (keyOrId: string) => {
@@ -96,10 +112,17 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   const selectedContainer = useMemo(() => {
     const pool = visiblePlans.length > 0 ? visiblePlans : plans;
     return (
-      pool.find((p) => makeContainerKey(p) === selectedContainerId || p.id === selectedContainerId) ||
+      pool.find((p) => makeContainerKey(p) === selectedContainerId) ||
+      pool.find((p) => p.id === selectedContainerId) ||
       pool[0]
     );
   }, [visiblePlans, plans, selectedContainerId]);
+
+  // ตรวจสอบว่าชื่อตู้ปัจจุบันมีซ้ำหลายตู้ในแผนหรือไม่ (เช่น SOUTH AFICA 28/11 กับ 15/12 หรือ K'FRANZ)
+  const isSelectedContainerNameDuplicate = useMemo(() => {
+    const cleanName = selectedContainer.name.trim().toUpperCase();
+    return plans.filter((p) => p.name.trim().toUpperCase() === cleanName).length > 1;
+  }, [plans, selectedContainer]);
 
   // จัดการเปิด/ปิดการแสดงผลตู้สินค้า
   const handleToggleContainerVisibility = async (plan: ContainerPlan) => {
@@ -137,10 +160,12 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     await saveHiddenContainerKeys(allKeys);
   };
 
-  // ตรวจสอบว่าโมเดลนี้ในตู้นี้ถูกปิดยอดแล้วหรือไม่ (ทนทานต่อการซิงค์ใหม่ 100%)
+  // ตรวจสอบว่าโมเดลนี้ในตู้นี้ถูกปิดยอดแล้วหรือไม่ (แยกตู้ชื่อซ้ำออกจากกัน 100%)
   const checkIsItemClosed = (it: PlanItem): boolean => {
     const k1 = makePlanItemKey(selectedContainer.id, it.modelPartNo);
-    const k2 = makePlanItemKey(selectedContainer.name, it.modelPartNo);
+    const k2 = isSelectedContainerNameDuplicate
+      ? k1
+      : makePlanItemKey(selectedContainer.name, it.modelPartNo);
     return (
       closedItemIds.has(k1) ||
       closedItemIds.has(k2) ||
@@ -152,7 +177,9 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
   // ตรวจสอบว่าโมเดลนี้ในตู้นี้ถูกฝ่ายวางแผนยกเลิกการผลิตหรือไม่
   const checkIsItemCancelled = (it: PlanItem): boolean => {
     const k1 = makePlanItemKey(selectedContainer.id, it.modelPartNo);
-    const k2 = makePlanItemKey(selectedContainer.name, it.modelPartNo);
+    const k2 = isSelectedContainerNameDuplicate
+      ? k1
+      : makePlanItemKey(selectedContainer.name, it.modelPartNo);
     return (
       cancelledItemIds.has(k1) ||
       cancelledItemIds.has(k2) ||
@@ -177,7 +204,9 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     }
 
     const itemKey1 = makePlanItemKey(selectedContainer.id, modelPartNo);
-    const itemKey2 = makePlanItemKey(selectedContainer.name, modelPartNo);
+    const itemKey2 = isSelectedContainerNameDuplicate
+      ? itemKey1
+      : makePlanItemKey(selectedContainer.name, modelPartNo);
     const normalizedOldId = normalizeClosedItemId(itemId);
 
     const isCurrentlyClosed =
@@ -223,7 +252,9 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
     }
 
     const itemKey1 = makePlanItemKey(selectedContainer.id, modelPartNo);
-    const itemKey2 = makePlanItemKey(selectedContainer.name, modelPartNo);
+    const itemKey2 = isSelectedContainerNameDuplicate
+      ? itemKey1
+      : makePlanItemKey(selectedContainer.name, modelPartNo);
     const normalizedOldId = normalizeClosedItemId(itemId);
 
     const isCurrentlyCancelled =
@@ -441,9 +472,10 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
           {/* Action Buttons: Manage Visible Containers, Sync Google Sheet & View Real Sheet */}
           <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => setIsManageModalOpen(true)}
               className={`px-3.5 py-2 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-colors ${
-                hiddenContainerKeys.size > 0
+                actualHiddenCount > 0
                   ? 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border-orange-500/60 shadow-sm shadow-orange-500/20'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
               }`}
@@ -458,6 +490,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             </button>
 
             <button
+              type="button"
               onClick={handleSyncGoogleSheet}
               disabled={isSyncing}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center space-x-1.5 transition-colors disabled:opacity-50"
@@ -497,7 +530,7 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
             <span className="text-xs font-medium text-amber-400">
               {lang === 'my' 
                 ? `ပြသနေသော ကွန်တိန်နာ ${visiblePlans.length} / ${plans.length} ခု` 
-                : `แสดง ${visiblePlans.length} จาก ${plans.length} ตู้${hiddenContainerKeys.size > 0 ? ` (ซ่อนอยู่ ${hiddenContainerKeys.size} ตู้)` : ''}${visiblePlans.length > 0 ? ` • ตู้ปัจจุบัน: ${selectedContainer.name}${selectedContainer.date ? ` (${selectedContainer.date})` : ''}` : ''}`}
+                : `แสดง ${visiblePlans.length} จาก ${plans.length} ตู้${actualHiddenCount > 0 ? ` (ซ่อนอยู่ ${actualHiddenCount} ตู้)` : ''}${visiblePlans.length > 0 ? ` • ตู้ปัจจุบัน: ${selectedContainer.name}${selectedContainer.date ? ` (${selectedContainer.date})` : ''}` : ''}`}
             </span>
           </div>
 
@@ -526,8 +559,9 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
                 return (
                   <button
                     key={containerKey}
+                    type="button"
                     onClick={() => handleSelectContainer(containerKey)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 shrink-0 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 shrink-0 select-none ${
                       isSelected
                         ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-400'
                         : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/80 hover:border-slate-600'
@@ -1137,10 +1171,13 @@ export const ContainerPlanDashboard: React.FC<ContainerPlanDashboardProps> = ({ 
               <div className="flex items-center justify-between text-[11px] text-slate-400">
                 <span>
                   กำลังแสดง <strong className="text-emerald-400">{visiblePlans.length}</strong> ตู้ • ซ่อนอยู่{' '}
-                  <strong className="text-rose-400">{hiddenContainerKeys.size}</strong> ตู้ (จากทั้งหมด {plans.length} ตู้ใน Google Sheet)
+                  <strong className="text-rose-400">{actualHiddenCount}</strong> ตู้ (จากทั้งหมด {plans.length} ตู้ใน Google Sheet)
                 </span>
                 {!isOperator && (
-                  <span className="text-amber-400 font-medium">🔒 ต้องยืนยัน PIN ช่าง/หัวหน้างานเพื่อแก้ไข</span>
+                  <span className="text-amber-400 font-medium flex items-center space-x-1">
+                    <Lock className="w-3 h-3" />
+                    <span>ต้องยืนยัน PIN ช่าง/หัวหน้างานเพื่อแก้ไข</span>
+                  </span>
                 )}
               </div>
             </div>

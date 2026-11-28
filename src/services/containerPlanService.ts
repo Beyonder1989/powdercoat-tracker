@@ -10,7 +10,7 @@ const ACTIVE_CONTAINER_STORAGE_KEY = 'powdercoat_active_container_id';
 const DEFAULT_ACTIVE_CONTAINER = 'EL_SALVADOR';
 
 /**
- * สร้างคีย์เฉพาะสำหรับตู้สินค้า (แยกตู้ที่ชื่อซ้ำกันแต่คนละวันที่ได้ เช่น SOUTH AFICA 27/11 vs เดือน 12)
+ * สร้างคีย์เฉพาะสำหรับตู้สินค้า (แยกตู้ที่ชื่อซ้ำกันแต่คนละวันที่ได้ เช่น SOUTH AFICA 28/11 vs 15/12)
  */
 export const makeContainerKey = (plan: Pick<ContainerPlan, 'id' | 'date'>): string => {
   const cleanId = (plan.id || '').trim().toUpperCase();
@@ -18,18 +18,91 @@ export const makeContainerKey = (plan: Pick<ContainerPlan, 'id' | 'date'>): stri
   return cleanDate ? `${cleanId}::${cleanDate}` : cleanId;
 };
 
-// ดึงแผนตู้สินค้าล่าสุด (จากแคชที่ซิงค์ไว้ หรือค่าเริ่มต้น)
+/**
+ * รับประกันว่าทุกตู้สินค้าในแผนมี id และ makeContainerKey ที่ไม่ซ้ำกัน 100%
+ * ป้องกันบั๊ก React Key ชนกันและปุ่มเลือกติดพร้อมกัน 2 ตู้เมื่อชื่อตู้ซ้ำกัน (เช่น SOUTH AFICA หรือ K'FRANZ)
+ */
+export const ensureUniqueContainerPlans = (rawPlans: ContainerPlan[]): ContainerPlan[] => {
+  const getBaseId = (name: string) =>
+    (name || '').trim().replace(/[^a-zA-Z0-9ก-๙]/g, '_').toUpperCase();
+
+  const baseCounts = new Map<string, number>();
+  rawPlans.forEach((p) => {
+    const bId = getBaseId(p.name);
+    baseCounts.set(bId, (baseCounts.get(bId) || 0) + 1);
+  });
+
+  const seenOccurrences = new Map<string, number>();
+  const usedIds = new Set<string>();
+  const usedKeys = new Set<string>();
+
+  return rawPlans.map((p) => {
+    const baseId = getBaseId(p.name);
+    const totalSameName = baseCounts.get(baseId) || 1;
+    let nextDate = (p.date || '').trim();
+    let nextId = (p.id || baseId).trim().toUpperCase();
+
+    if (totalSameName > 1) {
+      const occ = (seenOccurrences.get(baseId) || 0) + 1;
+      seenOccurrences.set(baseId, occ);
+
+      if (!nextDate) {
+        nextDate = `รอบที่ ${occ}`;
+      }
+      const dateSlug = nextDate.replace(/[^a-zA-Z0-9ก-๙]/g, '_').toUpperCase();
+      let candidateId = `${baseId}_${dateSlug}`;
+      if (usedIds.has(candidateId)) {
+        candidateId = `${candidateId}_${occ}`;
+      }
+      nextId = candidateId;
+    }
+
+    while (usedIds.has(nextId)) {
+      nextId = `${nextId}_2`;
+    }
+    let testKey = makeContainerKey({ id: nextId, date: nextDate });
+    let suffix = 2;
+    while (usedKeys.has(testKey)) {
+      nextDate = nextDate ? `${nextDate} #${suffix}` : `รอบที่ ${suffix}`;
+      testKey = makeContainerKey({ id: nextId, date: nextDate });
+      suffix++;
+    }
+
+    usedIds.add(nextId);
+    usedKeys.add(testKey);
+
+    // ถ้าเป็นตู้ชื่อซ้ำ ให้ใช้คีย์โมเดลที่ผูกกับ nextId เพื่อให้ปิดยอดแยกคนละตู้กันได้อิสระ
+    const nextItems =
+      totalSameName > 1
+        ? p.items.map((it) => ({
+            ...it,
+            id: `${nextId.replace(/[^A-Z0-9ก-๙]/g, '_')}__${(it.modelPartNo || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
+          }))
+        : p.items;
+
+    return {
+      ...p,
+      id: nextId,
+      date: nextDate,
+      items: nextItems,
+    };
+  });
+};
+
+// ดึงแผนตู้สินค้าล่าสุด (จากแคชที่ซิงค์ไว้ หรือค่าเริ่มต้น) พร้อมป้องกันคีย์ซ้ำอัตโนมัติ
 export const getCachedContainerPlans = (): ContainerPlan[] => {
   try {
     const raw = localStorage.getItem(CACHED_PLANS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return ensureUniqueContainerPlans(parsed);
+      }
     }
   } catch (e) {
     console.warn('Failed to read cached container plans:', e);
   }
-  return INITIAL_CONTAINER_PLANS;
+  return ensureUniqueContainerPlans(INITIAL_CONTAINER_PLANS);
 };
 
 export const GOOGLE_SHEET_CSV_URL = 
@@ -385,7 +458,8 @@ export const syncPlansFromGoogleSheet = async (): Promise<{
     if (apiRes.ok) {
       const json = await apiRes.json();
       if (json?.success && Array.isArray(json.plans) && json.plans.length > 0) {
-        const { plans: annotatedPlans, qtyChangedCount } = annotateQtyChanges(json.plans, prevPlans);
+        const uniqueSyncedPlans = ensureUniqueContainerPlans(json.plans);
+        const { plans: annotatedPlans, qtyChangedCount } = annotateQtyChanges(uniqueSyncedPlans, prevPlans);
 
         // ผสานสถานะตามสีจาก Google Sheet เข้ากับฐานข้อมูลปิดยอด / ยกเลิกบน Cloud
         const existingClosed = new Set(
@@ -399,6 +473,29 @@ export const syncPlansFromGoogleSheet = async (): Promise<{
         let newlyCancelled = 0;
         let closedChanged = false;
         let cancelledChanged = false;
+
+        // ล้างคีย์เก่าที่ยังไม่แยกวันที่ของตู้ที่มีชื่อซ้ำกัน (เช่น SOUTH_AFICA__*) เพื่อไม่ให้ไปปิดยอดข้ามตู้
+        const nameCounts = new Map<string, number>();
+        annotatedPlans.forEach((p) => {
+          const basePrefix = p.name.trim().toUpperCase().replace(/[^A-Z0-9ก-๙]/g, '_');
+          nameCounts.set(basePrefix, (nameCounts.get(basePrefix) || 0) + 1);
+        });
+        nameCounts.forEach((cnt, basePrefix) => {
+          if (cnt > 1) {
+            Array.from(existingClosed).forEach((k) => {
+              if (k.startsWith(`${basePrefix}__`)) {
+                existingClosed.delete(k);
+                closedChanged = true;
+              }
+            });
+            Array.from(existingCancelled).forEach((k) => {
+              if (k.startsWith(`${basePrefix}__`)) {
+                existingCancelled.delete(k);
+                cancelledChanged = true;
+              }
+            });
+          }
+        });
 
         annotatedPlans.forEach((p) => {
           p.items.forEach((it) => {
@@ -526,7 +623,8 @@ export const syncPlansFromGoogleSheet = async (): Promise<{
     }
 
     if (containers.length > 0) {
-      const { plans: annotatedPlans, qtyChangedCount } = annotateQtyChanges(containers, prevPlans);
+      const uniqueCsvPlans = ensureUniqueContainerPlans(containers);
+      const { plans: annotatedPlans, qtyChangedCount } = annotateQtyChanges(uniqueCsvPlans, prevPlans);
       try {
         localStorage.setItem(CACHED_PLANS_STORAGE_KEY, JSON.stringify(annotatedPlans));
       } catch (e) {
